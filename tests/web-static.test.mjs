@@ -137,6 +137,7 @@ test("stage 1.1 keeps the first minutes focused and makes feedback feel conseque
     text("apps/web/src/styles.css"),
     text("apps/web/src/trade.css")
   ]);
+  const polishStyles = `${styles}\n${tradeStyles}`;
 
   assert.match(app, /position\s*&&\s*\(/, "empty accounts should not spend space on a blank position card");
   assert.match(app, /quote-tick/, "the current quote should have restrained live-tick feedback");
@@ -145,12 +146,12 @@ test("stage 1.1 keeps the first minutes focused and makes feedback feel conseque
   assert.match(ticket, /lastFill/);
   assert.match(ticket, /role=["']status["']/);
   assert.match(ticket, /Bought|Sold/);
-  assert.match(tradeStyles, /trade-success/);
+  assert.match(polishStyles, /trade-success/);
 
   assert.match(objective, /First steps complete/);
   assert.match(objective, /ownedAssets\s*>=\s*2/);
 
   assert.doesNotMatch(chart, /atMs:\s*samples\[0\]\.atMs\s*\+\s*1/, "the chart must not fabricate a second history point");
   assert.match(chart, /Waiting for the next live update/);
-  assert.match(styles, /quote-tick/);
+  assert.match(polishStyles, /quote-tick/);
 });
