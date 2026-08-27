@@ -1,11 +1,9 @@
-import type { PortfolioPositionSnapshot } from "../../../../packages/shared/src/index";
-
 export interface NextObjectiveProps {
-  positions: PortfolioPositionSnapshot[];
+  ownedAssetCount: number;
 }
 
-export function NextObjective({ positions }: NextObjectiveProps) {
-  const ownedAssets = positions.filter((position) => position.quantity > 0).length;
+export function NextObjective({ ownedAssetCount }: NextObjectiveProps) {
+  const ownedAssets = Math.max(0, ownedAssetCount);
   const firstStepsComplete = ownedAssets >= 2;
 
   let title: string;
