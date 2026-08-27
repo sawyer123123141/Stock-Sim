@@ -1,5 +1,9 @@
 import { useMemo, useState } from "react";
-import type { AssetSnapshot, TradeSide } from "../../../../packages/shared/src/index";
+import type {
+  AssetSnapshot,
+  TradeFill,
+  TradeSide
+} from "../../../../packages/shared/src/index";
 import { formatMoney } from "../format";
 
 export interface TradeTicketProps {
@@ -8,6 +12,7 @@ export interface TradeTicketProps {
   ownedQuantity: number;
   pending: boolean;
   error: string | null;
+  lastFill: TradeFill | null;
   onTrade(side: TradeSide, quantity: number): Promise<unknown>;
 }
 
@@ -17,6 +22,7 @@ export function TradeTicket({
   ownedQuantity,
   pending,
   error,
+  lastFill,
   onTrade
 }: TradeTicketProps) {
   const [side, setSide] = useState<TradeSide>("buy");
@@ -86,6 +92,12 @@ export function TradeTicket({
         Estimate uses the price on screen. The live server sets the final execution price.
       </p>
 
+      {lastFill && (
+        <div className="trade-success" role="status" aria-live="polite">
+          <strong>{lastFill.side === "buy" ? "Bought" : "Sold"} {lastFill.quantity} {lastFill.symbol}</strong>
+          <span>{formatMoney(lastFill.total)} at {formatMoney(lastFill.unitPrice)} each</span>
+        </div>
+      )}
       {blockedReason && <p className="trade-warning">{blockedReason}</p>}
       {error && <p className="trade-error" role="alert">{error}</p>}
 
