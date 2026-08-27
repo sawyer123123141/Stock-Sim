@@ -6,6 +6,7 @@ export interface NextObjectiveProps {
 
 export function NextObjective({ positions }: NextObjectiveProps) {
   const ownedAssets = positions.filter((position) => position.quantity > 0).length;
+  const firstStepsComplete = ownedAssets >= 2;
 
   let title: string;
   let current: number;
@@ -17,7 +18,7 @@ export function NextObjective({ positions }: NextObjectiveProps) {
     current = 0;
     target = 1;
     detail = "Buy at least 1 unit of any asset.";
-  } else if (ownedAssets < 2) {
+  } else if (!firstStepsComplete) {
     title = "Own 2 different assets";
     current = ownedAssets;
     target = 2;
