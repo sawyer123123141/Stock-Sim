@@ -5,7 +5,12 @@ import { NextObjective } from "./components/NextObjective";
 import { PositionCard } from "./components/PositionCard";
 import { PriceChart } from "./components/PriceChart";
 import { TradeTicket } from "./components/TradeTicket";
-import { formatMoney, formatSignedPercent, marketChangeTone } from "./format";
+import {
+  describeMarketChange,
+  formatMoney,
+  formatSignedPercent,
+  marketChangeTone
+} from "./format";
 import { useMarketSession } from "./useMarketSession";
 
 export function App() {
@@ -39,6 +44,7 @@ export function App() {
   const asset = session.selectedAsset;
   const position = session.selectedPosition;
   const marketTone = marketChangeTone(asset.lastTickChangePct);
+  const marketChange = describeMarketChange(asset.lastTickChangePct);
   const lastFill = session.lastTrade?.assetId === asset.id ? session.lastTrade : null;
 
   return (
@@ -76,14 +82,14 @@ export function App() {
               >
                 {formatMoney(asset.price)}
               </strong>
-              <span className={`market-${marketTone}`}>
+              <span className={`market-${marketTone}`} aria-label={`Latest move: ${marketChange}`}>
                 {formatSignedPercent(asset.lastTickChangePct)} <small>latest move</small>
               </span>
             </div>
           </div>
 
           <div className="timeframe-row" aria-label="Chart timeframe">
-            <button type="button" className="timeframe-button is-active" aria-pressed="true">LIVE</button>
+            <span className="timeframe-button is-active">LIVE</span>
             <span>Session data only</span>
           </div>
 

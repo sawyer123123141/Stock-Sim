@@ -27,6 +27,14 @@ export function marketChangeTone(value: number): "up" | "down" | "neutral" {
   return safe > 0 ? "up" : "down";
 }
 
+export function describeMarketChange(value: number): string {
+  const tone = marketChangeTone(value);
+  const formatted = formatSignedPercent(value);
+  if (tone === "neutral") return `unchanged at ${formatted}`;
+
+  return `${tone} ${formatted.slice(1)}`;
+}
+
 export function formatSignedPercent(value: number): string {
   const safe = Number.isFinite(value) ? value : 0;
   if (percentageRoundsToZero(safe)) {

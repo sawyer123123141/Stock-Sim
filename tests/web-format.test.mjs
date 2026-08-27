@@ -30,6 +30,18 @@ async function marketChangeTone(value) {
   return stdout.trim();
 }
 
+async function marketChangeDescription(value) {
+  const { stdout } = await execFileAsync(process.execPath, [
+    "--no-warnings",
+    "--experimental-strip-types",
+    "--input-type=module",
+    "--eval",
+    `import * as formatter from ${JSON.stringify(formatterModule.href)}; console.log(formatter.describeMarketChange?.(${value}) ?? "missing");`
+  ]);
+
+  return stdout.trim();
+}
+
 test("percentages that round to zero do not display a negative zero", async () => {
   assert.equal(await formatMarketChange(-0.0001), "0.00%");
   assert.equal(await formatMarketChange(0.0001), "0.00%");
@@ -40,4 +52,10 @@ test("percentages that round to zero use a neutral tone", async () => {
   assert.equal(await marketChangeTone(0), "neutral");
   assert.equal(await marketChangeTone(0.01), "up");
   assert.equal(await marketChangeTone(-0.01), "down");
+});
+
+test("market change descriptions convey direction without relying on color", async () => {
+  assert.equal(await marketChangeDescription(1.2), "up 1.20%");
+  assert.equal(await marketChangeDescription(-1.2), "down 1.20%");
+  assert.equal(await marketChangeDescription(-0.0001), "unchanged at 0.00%");
 });

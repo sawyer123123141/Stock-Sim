@@ -46,6 +46,7 @@ export function TradeTicket({
     if (side === "sell" && quantity > ownedQuantity) return "You do not own that many units.";
     return null;
   }, [cash, estimatedTotal, ownedQuantity, quantity, quantityIsValid, side]);
+  const quantityDescription = blockedReason ? "quantity-help quantity-warning" : "quantity-help";
 
   const submit = async () => {
     if (blockedReason || pending || !quantityIsValid) return;
@@ -86,7 +87,8 @@ export function TradeTicket({
           inputMode="numeric"
           value={quantityText}
           onChange={(event) => setQuantityText(event.target.value)}
-          aria-describedby="quantity-help"
+          aria-describedby={quantityDescription}
+          aria-invalid={blockedReason ? true : undefined}
         />
       </label>
 
@@ -106,7 +108,7 @@ export function TradeTicket({
           <span>{formatMoney(lastFill.total)} at {formatMoney(lastFill.unitPrice)} each</span>
         </div>
       )}
-      {blockedReason && <p className="trade-warning">{blockedReason}</p>}
+      {blockedReason && <p id="quantity-warning" className="trade-warning">{blockedReason}</p>}
       {error && <p className="trade-error" role="alert">{error}</p>}
 
       <button

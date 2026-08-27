@@ -30,6 +30,24 @@ test("stage 1 web client has a Vite mount boundary and root scripts", async () =
   assert.match(app, /export\s+function\s+App/);
 });
 
+test("client controls expose accessible trade validation and live-market context", async () => {
+  const [app, ticket, chart, rail] = await Promise.all([
+    text("apps/web/src/App.tsx"),
+    text("apps/web/src/components/TradeTicket.tsx"),
+    text("apps/web/src/components/PriceChart.tsx"),
+    text("apps/web/src/components/AssetRail.tsx")
+  ]);
+  const timeframe = app.match(/<div className="timeframe-row"[\s\S]*?<\/div>/)?.[0] ?? "";
+
+  assert.match(ticket, /aria-invalid=\{blockedReason \? true : undefined\}/);
+  assert.match(ticket, /aria-describedby=\{quantityDescription\}/);
+  assert.match(ticket, /id="quantity-warning"/);
+  assert.match(chart, /describeMarketChange/);
+  assert.doesNotMatch(timeframe, /<button/, "the static LIVE label must not be an inactive tab stop");
+  assert.match(rail, /<button/);
+  assert.match(rail, /aria-pressed/);
+});
+
 test("browser transport sends intent only and session state follows authoritative snapshots", async () => {
   const [api, session, snapshotState] = await Promise.all([
     text("apps/web/src/api.ts"),
