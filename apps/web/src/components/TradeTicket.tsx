@@ -48,7 +48,7 @@ export function TradeTicket({
         <span className="current-quote">{formatMoney(asset.price)}</span>
       </div>
 
-      <div className="trade-side-switch" aria-label="Trade direction">
+      <div className="trade-side-switch" role="group" aria-label="Trade direction">
         <button
           type="button"
           className={side === "buy" ? "is-active" : ""}
