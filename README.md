@@ -6,17 +6,17 @@ A player should be able to start with almost no knowledge of stocks, understand 
 
 ## Current status
 
-The deterministic stock/crypto simulation is implemented, and the first authoritative realtime server slice is implemented on `feat/authoritative-market-runtime` pending merge review.
+The deterministic stock/crypto simulation and authoritative realtime market server are merged into `main`. The first server-owned trading slice is implemented on `feat/first-trading-slice` pending merge review.
 
-The server owns market time and state, can advance the deterministic simulation on a schedule, exposes the current fictional-market snapshot over HTTP, and streams authoritative updates over WebSocket. The current work still deliberately excludes accounts, a persistent portfolio/trade ledger, a database, and production UI.
+The server owns market time, prices, cash, and holdings. The current prototype supports one configured demo player with **$10,000.00 of fictional starting cash**, immediate whole-unit Buy/Sell market orders, no short selling, and no fees. Portfolio state is intentionally in memory and resets when the server restarts.
 
-The project intentionally separates the first playable version from the long-term vision so the game does not become an enormous pile of half-understood features.
+A database, authentication, production UI, advanced orders, and player trade impact on prices are still deliberately deferred. The project separates each slice so the first playable does not become an enormous pile of half-understood features.
 
 ## Architecture
 
-- `packages/shared/` — shared market/domain contracts.
+- `packages/shared/` — shared market, portfolio, and trading contracts.
 - `packages/sim/` — pure deterministic simulation engine. No UI, HTTP, database, timers, or hidden global randomness.
-- `apps/server/` — authoritative Fastify + WebSocket runtime around the pure simulation.
+- `apps/server/` — authoritative Fastify + WebSocket runtime plus in-memory portfolio/trading services.
 - `apps/web/` — planned React + Vite client. Production UI follows the reference/mockup gate and progressive-disclosure rules.
 
 Node 24 LTS is the preferred development line; the project currently supports Node 22.12+.
@@ -37,11 +37,18 @@ Current server endpoints:
 
 - `GET /api/market` — current authoritative fictional-market snapshot.
 - `WS /ws/market` — current snapshot immediately on connection, followed by authoritative market updates.
+- `GET /api/portfolio` — current demo-player cash, holdings, and live portfolio valuation.
+- `POST /api/trades` — immediate fictional Buy/Sell intent using only `assetId`, `side`, and whole-unit `quantity`.
+
+The client never supplies canonical prices, balances, holdings, or an arbitrary player identity.
 
 ## Design documents
 
 - [Master design spec](docs/superpowers/specs/2026-08-26-market-era-design.md)
 - [UI reference research](docs/ui-reference-research.md)
+- [Current UI direction](docs/mockups/2026-08-27-current-ui-direction.md)
+- [First trading slice design](docs/superpowers/specs/2026-08-27-first-trading-slice-design.md)
+- [First trading slice implementation plan](docs/superpowers/plans/2026-08-27-first-trading-slice.md)
 - [Market simulation implementation plan](docs/superpowers/plans/2026-08-26-market-simulation-vertical-slice.md)
 - [Agent handoff / compaction protocol](AGENTS.md)
 
