@@ -35,7 +35,7 @@ npm run dev:web
 npm run build:web
 ```
 
-`npm test` compiles the Node/shared TypeScript, runs the behavior/regression suite, and builds the browser client. `npm run demo` prints a small fictional market with beginner-readable explanations. `npm run start:server` builds and starts the authoritative server on port `3000` by default; `HOST` and `PORT` can override its listener settings. `npm run dev:web` starts the Vite development client, and `npm run build:web` creates the production browser bundle.
+`npm test` compiles the Node/shared TypeScript, runs the behavior/regression suite, and builds the browser client. `npm run typecheck` checks both the Node/shared code and the strict browser TypeScript project. `npm run demo` prints a small fictional market with beginner-readable explanations. `npm run start:server` builds and starts the authoritative server on port `3000` by default; `HOST` and `PORT` can override its listener settings. `npm run dev:web` starts the Vite development client, and `npm run build:web` creates the production browser bundle.
 
 For the playable client, run the server and Vite dev client in separate terminals. The Vite config proxies API and WebSocket traffic to the local authoritative server.
 
@@ -71,7 +71,7 @@ It deliberately does **not** include limit orders, stops, margin, leverage, extr
 - [Current UI direction](docs/mockups/2026-08-27-current-ui-direction.md)
 - [First trading slice design](docs/superpowers/specs/2026-08-27-first-trading-slice-design.md)
 - [First trading slice implementation plan](docs/superpowers/plans/2026-08-27-first-trading-slice.md)
-- [Stage 1 web client implementation plan](docs/superpowers/plans/2026-08-27-stage1-web-client.md)
+- [Stage 1 web client implementation plan](docs/superpowers/plans/2026-08-27-stage-1-web-client.md)
 - [Market simulation implementation plan](docs/superpowers/plans/2026-08-26-market-simulation-vertical-slice.md)
 - [Agent handoff / compaction protocol](AGENTS.md)
 
