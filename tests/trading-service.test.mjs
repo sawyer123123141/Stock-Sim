@@ -135,6 +135,49 @@ test("an invalid execution clock cannot commit a trade before failing", async ()
   assert.deepEqual(await service.getPortfolio("demo-player"), before);
 });
 
+test("a queued trade uses the authoritative price and time when its transaction executes", async () => {
+  let nowMs = 1_000;
+  const runtime = createMarketRuntime({
+    initialState: createSeedMarket(),
+    seed: 123,
+    startedAtMs: nowMs
+  });
+  const backingStore = new InMemoryPortfolioStore();
+  let releaseTransaction;
+  const gate = new Promise((resolve) => {
+    releaseTransaction = resolve;
+  });
+  const delayedStore = {
+    read(playerId) {
+      return backingStore.read(playerId);
+    },
+    async transact(playerId, mutation) {
+      await gate;
+      return backingStore.transact(playerId, mutation);
+    }
+  };
+  const service = createTradingService({ runtime, store: delayedStore, now: () => nowMs });
+
+  const tradePromise = service.executeTrade("demo-player", {
+    assetId: "nova",
+    side: "buy",
+    quantity: 1
+  });
+
+  nowMs = 61_000;
+  const updatedMarket = runtime.advanceTo(nowMs);
+  const updatedNova = updatedMarket.assets.find((asset) => asset.id === "nova");
+  assert.ok(updatedNova);
+  const expectedUnitPrice = Math.round(updatedNova.price * 100) / 100;
+  assert.notEqual(expectedUnitPrice, 42.18);
+
+  releaseTransaction();
+  const result = await tradePromise;
+
+  assert.equal(result.fill.unitPrice, expectedUnitPrice);
+  assert.equal(result.fill.executedAt, "1970-01-01T00:01:01.000Z");
+});
+
 test("portfolio valuation follows the current authoritative market price", async () => {
   const { service, runtime, nova, setNow } = setup();
   const bought = await service.executeTrade("demo-player", { assetId: nova.id, side: "buy", quantity: 10 });
