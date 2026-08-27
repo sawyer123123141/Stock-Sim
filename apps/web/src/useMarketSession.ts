@@ -10,14 +10,15 @@ import type {
 } from "../../../packages/shared/src/index";
 import { fetchMarket, fetchPortfolio, openMarketSocket, submitTrade } from "./api";
 import { rememberOwnedAssetIds } from "./firstSessionProgress";
+import {
+  applyMarketSnapshot,
+  type MarketSnapshotState,
+  type PriceHistory,
+  type PriceSample
+} from "./marketSnapshotState";
 import { projectPortfolioToMarket } from "./portfolioProjection";
 
-export interface PriceSample {
-  atMs: number;
-  price: number;
-}
-
-export type PriceHistory = Record<string, PriceSample[]>;
+export type { PriceHistory, PriceSample } from "./marketSnapshotState";
 
 export interface MarketSession {
   market: MarketSnapshot | null;
@@ -39,45 +40,27 @@ export interface MarketSession {
   lastTradeId: string | null;
 }
 
-const MAX_HISTORY_POINTS = 120;
-
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Something went wrong while loading the market.";
 }
 
 export function useMarketSession(): MarketSession {
-  const [market, setMarket] = useState<MarketSnapshot | null>(null);
+  const [snapshotState, setSnapshotState] = useState<MarketSnapshotState>({
+    market: null,
+    priceHistory: {}
+  });
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [connectionNotice, setConnectionNotice] = useState<string | null>(null);
   const [selectedAssetId, setSelectedAssetId] = useState("nova");
-  const [priceHistory, setPriceHistory] = useState<PriceHistory>({});
   const [firstSessionAssetIds, setFirstSessionAssetIds] = useState<string[]>([]);
   const [tradePending, setTradePending] = useState(false);
   const [tradeError, setTradeError] = useState<string | null>(null);
   const [lastTrade, setLastTrade] = useState<TradeFill | null>(null);
 
   const applySnapshot = useCallback((snapshot: MarketSnapshot) => {
-    setMarket(snapshot);
-    const atMs = Date.parse(snapshot.generatedAt);
-    if (!Number.isFinite(atMs)) return;
-
-    setPriceHistory((previous) => {
-      let changed = false;
-      const next = { ...previous };
-
-      for (const asset of snapshot.assets) {
-        const history = previous[asset.id] ?? [];
-        const last = history[history.length - 1];
-        if (last?.atMs === atMs) continue;
-
-        next[asset.id] = [...history, { atMs, price: asset.price }].slice(-MAX_HISTORY_POINTS);
-        changed = true;
-      }
-
-      return changed ? next : previous;
-    });
+    setSnapshotState((previous) => applyMarketSnapshot(previous, snapshot));
   }, []);
 
   useEffect(() => {
@@ -125,13 +108,15 @@ export function useMarketSession(): MarketSession {
   }, []);
 
   const livePortfolio = useMemo(
-    () => portfolio && market ? projectPortfolioToMarket(portfolio, market) : portfolio,
-    [portfolio, market]
+    () => portfolio && snapshotState.market
+      ? projectPortfolioToMarket(portfolio, snapshotState.market)
+      : portfolio,
+    [portfolio, snapshotState.market]
   );
 
   const selectedAsset = useMemo(
-    () => market?.assets.find((asset) => asset.id === selectedAssetId) ?? null,
-    [market, selectedAssetId]
+    () => snapshotState.market?.assets.find((asset) => asset.id === selectedAssetId) ?? null,
+    [snapshotState.market, selectedAssetId]
   );
 
   const selectedPosition = useMemo(
@@ -139,7 +124,7 @@ export function useMarketSession(): MarketSession {
     [livePortfolio, selectedAssetId]
   );
 
-  const selectedHistory = priceHistory[selectedAssetId] ?? [];
+  const selectedHistory = snapshotState.priceHistory[selectedAssetId] ?? [];
 
   const trade = useCallback(async (
     side: TradeSide,
@@ -165,7 +150,7 @@ export function useMarketSession(): MarketSession {
   }, [selectedAssetId, tradePending]);
 
   return {
-    market,
+    market: snapshotState.market,
     portfolio: livePortfolio,
     loading,
     error,
@@ -174,7 +159,7 @@ export function useMarketSession(): MarketSession {
     selectedAsset,
     selectedPosition,
     selectedHistory,
-    priceHistory,
+    priceHistory: snapshotState.priceHistory,
     firstSessionOwnedAssetCount: firstSessionAssetIds.length,
     selectAsset,
     trade,

@@ -17,6 +17,7 @@
     "packages/**/*.ts",
     "apps/server/**/*.ts",
     "apps/web/src/portfolioProjection.ts",
-    "apps/web/src/firstSessionProgress.ts"
+    "apps/web/src/firstSessionProgress.ts",
+    "apps/web/src/marketSnapshotState.ts"
   ]
 }
