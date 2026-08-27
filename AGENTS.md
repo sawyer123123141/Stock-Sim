@@ -14,9 +14,10 @@ Do not turn it into professional trading software, a finance textbook, a casino,
 2. `README.md`
 3. `docs/superpowers/specs/2026-08-26-market-era-design.md`
 4. `docs/ui-reference-research.md`
-5. the active file under `docs/superpowers/plans/`
-6. relevant tests
-7. relevant implementation files
+5. `docs/mockups/2026-08-27-current-ui-direction.md`
+6. the active file under `docs/superpowers/plans/`
+7. relevant tests
+8. relevant implementation files
 
 Do not rely on chat history. The repository should contain enough context to reconstruct intent.
 
@@ -40,8 +41,9 @@ The first implementation plan was written before the reviewed prototype and is p
 
 - examples using `changePct` should now use `lastTickChangePct` for the most recent simulation tick;
 - tick behavior must receive explicit elapsed time (`deltaMs`); never assume every function call represents the same amount of market time;
-- the current dependency-free prototype uses Node's built-in test runner rather than the planned Vitest/Zod/Fastify stack because external dependencies could not be installed in the original execution environment;
-- the plan's provisional “non-wager only” prediction note does **not** override the approved master spec. If predictions are implemented later, they may use **fictional in-game money only**, must have no real-money purchase/cash-out connection, and must remain secondary to the market/investing loop.
+- the project still uses Node's built-in test runner rather than the planned Vitest/Zod stack;
+- Fastify and WebSocket dependencies are now available and the first authoritative runtime/server boundary is implemented on `feat/authoritative-market-runtime`;
+- forecast/prediction ideas are not part of the current implementation. Do not add currency-staking or wagering mechanics. Any future forecast challenge must remain a non-wager learning/gameplay interaction and must comply with current safety requirements.
 
 When a future plan replaces these decisions, update this section.
 
@@ -55,11 +57,11 @@ When a future plan replaces these decisions, update this section.
 - Richer players gain abstraction and automation, not hundreds of chores.
 - Stocks and crypto must behave meaningfully differently.
 - Price movement must be explainable without becoming perfectly predictable.
-- The intended live server is authoritative; clients never own canonical market/account state.
+- The live server is authoritative; clients never own canonical market/account state.
 - The intended live game has one global fictional economy available 24/7.
 - Real-player market influence is bounded; simulated liquidity prevents absurd coordinated moves.
 - Future goals do not enter the MVP merely because they sound cool or are easy to code.
-- No real-money wagering or cash-out systems.
+- No real-money wagering, cash-out, or currency-staking forecast systems.
 
 ## 5. Anti-slop feature gate
 
@@ -92,16 +94,28 @@ Before implementation:
 8. review crowding, terminology, typography, spacing, motion, accessibility, and scaling;
 9. only then implement production UI.
 
-`docs/ui-reference-research.md` is mandatory for UI work. The first planned screen is **Market Overview**. The visual identity is colorful business-cartoon, not a black trading terminal and not a childish learning app.
+`docs/ui-reference-research.md` and `docs/mockups/2026-08-27-current-ui-direction.md` are mandatory for UI work.
+
+Current reviewed direction:
+
+- **market core credible, surrounding experience game-like**;
+- Home / Market Overview is game-forward;
+- Asset Detail is market-forward;
+- the dense dark command-center prototype is a **midgame reference**, not the first-session UI;
+- new players begin with only a few assets, a simple chart, price/change, one Buy/Sell path, one story/explanation, and one next goal;
+- deeper timeframes, Top Movers, event markers, movement breakdowns, alerts, and advanced tools are progressively revealed inside familiar screens;
+- do not add gems/shards/energy or other fake mobile-game currencies to manufacture game feel.
+
+The exact theme is still subject to refinement. Do not mistake a neon treatment for the product identity.
 
 ## 7. Architecture
 
 ```text
 apps/web/         Planned React + Vite client; display/input only.
-apps/server/      Planned authoritative Fastify + WebSocket runtime.
+apps/server/      Authoritative Fastify + WebSocket runtime.
 packages/sim/     Pure deterministic market simulation engine.
 packages/shared/  Shared domain/wire contracts.
-tests/            Behavior and replay tests.
+tests/            Behavior, replay, transport, and lifecycle tests.
 tools/            Small development/demo utilities only.
 docs/             Research, specs, plans, and design constraints.
 ```
@@ -122,12 +136,27 @@ Pure simulation receives state, elapsed time, pressure, events, and RNG explicit
 
 Do not make scheduling frequency secretly change game balance.
 
+`apps/server/` now wraps the pure engine without moving game rules into infrastructure. The runtime owns its state and seeded RNG, advances only when time moves forward, can run from an injected or system scheduler, publishes snapshots to subscribers, and is coupled to Fastify listener lifecycle through `server.ts`.
+
+The current transport boundary provides:
+
+- `GET /api/market` for the current authoritative snapshot;
+- `WS /ws/market` for the current snapshot on connection plus future authoritative updates.
+
+The client remains display/input only. Future trade requests must express player intent to the server; clients must never assign canonical balances, holdings, or prices.
+
+### Persistence boundary
+
+Do **not** add the database yet. Accounts, portfolio state, trades, and persistence are intentionally deferred until the first in-memory Buy/Sell vertical slice proves the data model.
+
+When persistence is introduced, keep it behind explicit store/repository interfaces so domain logic is not coupled directly to a database library.
+
 ### Technology direction
 
 - TypeScript.
 - Node.js 24 LTS preferred; current minimum `22.12`.
 - React + Vite planned for desktop-first web UI.
-- Fastify + WebSockets planned for the authoritative runtime.
+- Fastify + `@fastify/websocket` + `ws` for the authoritative runtime/transport.
 - Persistence/auth intentionally remain undecided until their subsystem is planned.
 
 Do not add a database, ORM, UI framework, mobile wrapper, deployment platform, or state library merely because the project may need one eventually.
@@ -137,7 +166,8 @@ Do not add a database, ORM, UI framework, mobile wrapper, deployment platform, o
 - `README.md` — concise human-facing status and scope.
 - `AGENTS.md` — this cold-start guide and compaction protocol.
 - `docs/superpowers/specs/2026-08-26-market-era-design.md` — approved product vision, MVP boundary, and future goals.
-- `docs/ui-reference-research.md` — UI references, anti-slop rules, and Market Overview brief.
+- `docs/ui-reference-research.md` — UI references and anti-slop research.
+- `docs/mockups/2026-08-27-current-ui-direction.md` — latest visual hierarchy and progressive-disclosure checkpoint.
 - `docs/superpowers/plans/2026-08-26-market-simulation-vertical-slice.md` — original first implementation plan; read the amendments above before following it literally.
 - `packages/shared/src/market.ts` — market contracts.
 - `packages/sim/src/rng.ts` — deterministic seeded random source.
@@ -147,7 +177,12 @@ Do not add a database, ORM, UI framework, mobile wrapper, deployment platform, o
 - `packages/sim/src/explain.ts` — ranks raw movement causes into plain-language reasons.
 - `packages/sim/src/tick.ts` — reviewed, time-aware stock/crypto tick formulas.
 - `packages/sim/src/market.ts` — advances a market and creates snapshots.
-- `tests/*.test.mjs` — deterministic behavior/regression tests.
+- `apps/server/src/marketRuntime.ts` — authoritative in-memory market owner, scheduler, and subscriber boundary.
+- `apps/server/src/marketRoutes.ts` — HTTP/WebSocket market transport.
+- `apps/server/src/app.ts` — Fastify app/plugin composition.
+- `apps/server/src/server.ts` — couples listener lifecycle to runtime lifecycle.
+- `apps/server/src/index.ts` — executable server entrypoint.
+- `tests/*.test.mjs` — deterministic behavior/regression/server tests.
 - `tools/demo.mjs` — console demonstration only, not gameplay.
 
 Update this map when a new important directory would otherwise be ambiguous.
@@ -179,21 +214,17 @@ For testable behavior:
 7. inspect the diff;
 8. only then claim completion.
 
-Current pure-engine commands:
+Current commands:
 
 ```bash
+npm install
 npm test
 npm run typecheck
 npm run demo
+npm run start:server
 ```
 
-If dependencies are unavailable, the verified fallback used for this prototype is:
-
-```bash
-tsc -p tsconfig.json
-node --test tests/*.test.mjs
-node tools/demo.mjs
-```
+GitHub Actions runs `npm install`, `npm test`, and `npm run typecheck` for pushes and pull requests. Use current CI evidence when a local development machine is unavailable.
 
 Never claim a green suite from an earlier tree after changing code.
 
@@ -219,7 +250,7 @@ Before handoff:
 5. update **Current State Snapshot** below with branch/commit, working behavior, verification evidence, blockers, and exact next task;
 6. update README only if public setup/status changed;
 7. update the master spec only for an approved product decision;
-8. update UI research only when reference evidence/rules changed;
+8. update UI research/current-direction docs only when reference evidence/rules changed;
 9. commit the handoff updates;
 10. push code and docs;
 11. confirm the remote commit exists.
@@ -237,13 +268,13 @@ If this snapshot and git disagree, trust git/test evidence and repair the snapsh
 
 ## 13. Current State Snapshot
 
-**Canonical branch after merge:** `main`
+**Canonical merge target:** `main`
 
-**Reviewed implementation branch:** `review/market-sim-time-scaling-clean`
+**Active implementation branch:** `feat/authoritative-market-runtime`
 
-**Last locally verified reviewed code:** `7fb5d50a917ca5c702fbc1449e9f5ad34e79e342`
+**Last verified implementation commit before handoff docs:** `3985dd21da8395e72bf08d7c008882eccaa5217e`
 
-**Status:** The smallest pure market-simulation prototype exists and has completed a pre-merge timing/semantics review.
+**Status:** The pure market engine now has a tested authoritative realtime server boundary. The branch is not yet merged into `main`.
 
 **What works:**
 - six fictional assets: three stocks and three crypto coins;
@@ -253,22 +284,28 @@ If this snapshot and git disagree, trust git/test evidence and repair the snapsh
 - asset/sector/global events with decay;
 - ranked beginner-readable movement reasons;
 - elapsed-time-aware price movement and momentum;
-- explicit last-tick percentage semantics;
+- authoritative in-memory runtime with explicit clock/scheduler boundaries;
+- runtime start/stop lifecycle and subscriber snapshots;
+- Fastify HTTP snapshot endpoint;
+- WebSocket current-snapshot + future-update stream;
+- runnable server entrypoint and `npm run start:server` command;
+- GitHub Actions verification for branches/PRs;
 - console demo.
 
-**Fresh verification evidence:**
-- TypeScript compilation: PASS.
-- Node suite: **11 tests passed, 0 failed**.
-- Added merge-review regressions for tick-duration scaling, one-day runaway drift, and zero-time momentum stability.
-- Demo executes successfully after the review fixes.
+**Fresh verification evidence for implementation commit `3985dd21...`:**
+- GitHub Actions CI run `33073433830`: PASS.
+- Node suite: **18 tests passed, 0 failed**.
+- TypeScript typecheck: PASS.
+- HTTP, WebSocket, runtime scheduling, lifecycle, deterministic replay, timing, and movement regressions all pass in that run.
 
 **Known limitations / intentional omissions:**
-- no authoritative Fastify/WebSocket runtime yet;
-- no accounts, portfolio, buy/sell ledger, persistence, alerts, Era lifecycle, or leaderboards yet;
-- no production UI yet;
-- external dependency/server work from the original plan remains unverified and unimplemented;
+- no accounts, portfolio, Buy/Sell ledger, persistence, alerts, Era lifecycle, or leaderboards yet;
+- no database or auth yet by design;
+- no production web client yet;
+- market pressure is not yet connected to player trade intent;
+- server is a single-process authoritative foundation, not production horizontal scaling infrastructure;
 - simulation constants are an initial game-tuning baseline, not final economy balance.
 
-**Next engineering task:** wrap the pure engine in an authoritative realtime server only after dependencies can be installed and tested. Re-read the active plan, this file's amendments, `packages/sim/src/index.ts`, and replay/timing tests first.
+**Exact next engineering task after merge/review:** build the smallest early-game client/trading vertical slice. Start with shared trade/portfolio contracts and an in-memory server-owned portfolio/trade boundary, then connect a minimal React/Vite client to authoritative snapshots. Do not add persistence until the in-memory data model is proven.
 
-**Next design task:** turn the Market Overview brief in `docs/ui-reference-research.md` into a reviewed visual desktop mockup before production UI code.
+**Exact next design task:** implement the simplified Stage-1 version described in `docs/mockups/2026-08-27-current-ui-direction.md`: minimal home/market shell + Nova Motors detail + live chart + one clear Buy/Sell path + cash/holdings + one plain-language explanation. Treat the dense command-center mockup as midgame, not onboarding.
