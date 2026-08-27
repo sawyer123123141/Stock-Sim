@@ -39,6 +39,7 @@ export function App() {
   const asset = session.selectedAsset;
   const position = session.selectedPosition;
   const positive = asset.lastTickChangePct >= 0;
+  const lastFill = session.lastTrade?.assetId === asset.id ? session.lastTrade : null;
 
   return (
     <main className="app-shell">
@@ -69,7 +70,12 @@ export function App() {
             </div>
 
             <div className="quote-block">
-              <strong>{formatMoney(asset.price)}</strong>
+              <strong
+                key={`${asset.id}-${session.market.sequence}`}
+                className="quote-tick"
+              >
+                {formatMoney(asset.price)}
+              </strong>
               <span className={positive ? "market-up" : "market-down"}>
                 {formatSignedPercent(asset.lastTickChangePct)} <small>latest move</small>
               </span>
@@ -91,13 +97,16 @@ export function App() {
             ownedQuantity={position?.quantity ?? 0}
             pending={session.tradePending}
             error={session.tradeError}
+            lastFill={lastFill}
             onTrade={session.trade}
           />
-          <PositionCard
-            key={`${asset.id}-${session.lastTradeId ?? "initial"}`}
-            asset={asset}
-            position={position}
-          />
+          {position && (
+            <PositionCard
+              key={`${asset.id}-${session.lastTradeId ?? "initial"}`}
+              asset={asset}
+              position={position}
+            />
+          )}
         </aside>
       </div>
 
