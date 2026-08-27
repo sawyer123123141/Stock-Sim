@@ -8,19 +8,28 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsc -p tsconfig.json && node --test tests/*.test.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p apps/web/tsconfig.json --noEmit",
+    "typecheck:web": "tsc -p apps/web/tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.json && node --test tests/*.test.mjs && npm run build:web",
     "demo": "tsc -p tsconfig.json && node tools/demo.mjs",
-    "start:server": "npm run build && node dist/apps/server/src/index.js"
+    "start:server": "npm run build && node dist/apps/server/src/index.js",
+    "dev:web": "vite --config apps/web/vite.config.ts",
+    "build:web": "vite build --config apps/web/vite.config.ts"
   },
   "dependencies": {
     "@fastify/websocket": "^11.3.0",
     "fastify": "^5.12.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
     "ws": "^8.21.3"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
     "@types/ws": "^8.18.1",
-    "typescript": "^5.8.3"
+    "@vitejs/plugin-react": "^5.0.2",
+    "typescript": "^5.8.3",
+    "vite": "^7.1.3"
   }
 }
