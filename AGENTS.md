@@ -44,7 +44,7 @@ The original market-simulation plan is partly historical. Current amendments:
 - the project uses Node's built-in test runner rather than the originally proposed Vitest/Zod stack;
 - Fastify and WebSocket dependencies are available; the authoritative runtime/server boundary was merged through PR #1;
 - the first in-memory portfolio/trading slice was merged to `main` through PR #2 at `65f8aba9a4182e3f5c2b9e49a475b2e5577ad39f`;
-- the Stage-1 client implementation is defined by `docs/superpowers/plans/2026-08-27-stage1-web-client.md`;
+- the Stage-1 client implementation is defined by `docs/superpowers/plans/2026-08-27-stage-1-web-client.md`;
 - forecast/prediction ideas are not part of the current implementation. Do not add currency-staking or wagering mechanics. Any future forecast challenge must remain a non-wager learning/gameplay interaction and comply with current safety requirements.
 
 When a future plan replaces these decisions, update this section.
@@ -206,7 +206,7 @@ Do not add a database, ORM, UI framework, mobile wrapper, deployment platform, o
 - `docs/mockups/2026-08-27-current-ui-direction.md` — latest visual hierarchy and progressive-disclosure checkpoint.
 - `docs/superpowers/specs/2026-08-27-first-trading-slice-design.md` — first portfolio/trading rules and boundaries.
 - `docs/superpowers/plans/2026-08-27-first-trading-slice.md` — server trading implementation plan.
-- `docs/superpowers/plans/2026-08-27-stage1-web-client.md` — current Stage-1 client implementation plan.
+- `docs/superpowers/plans/2026-08-27-stage-1-web-client.md` — current Stage-1 client implementation plan.
 - `docs/superpowers/plans/2026-08-26-market-simulation-vertical-slice.md` — historical first market-engine plan; read amendments above before following literally.
 - `packages/shared/src/market.ts` — market contracts.
 - `packages/shared/src/trading.ts` — trade intent, fill, portfolio snapshot, and trading-error contracts.
@@ -261,7 +261,7 @@ npm run dev:web
 npm run build:web
 ```
 
-`npm test` compiles the Node/shared TypeScript, runs Node behavior/regression tests, and runs the Vite production build. GitHub Actions also runs a separate `npm run typecheck` step.
+`npm test` compiles the Node/shared TypeScript, runs Node behavior/regression tests, and runs the Vite production build. `npm run typecheck` checks both the Node/shared TypeScript project and the strict browser TypeScript project. GitHub Actions runs both gates.
 
 Never claim a green suite from an earlier tree after changing code.
 
@@ -308,15 +308,15 @@ If this snapshot and git disagree, trust git/test evidence and repair the snapsh
 
 **Canonical merge target:** `main`
 
-**Current `main` before Stage-1 client merge:** `65f8aba9a4182e3f5c2b9e49a475b2e5577ad39f` (PR #2, first server-owned fictional trading slice)
+**Current `main` before Stage-1 client integration:** `65f8aba9a4182e3f5c2b9e49a475b2e5577ad39f` (PR #2, first server-owned fictional trading slice)
 
 **Active implementation branch:** `feat/stage1-web-client`
 
-**Last freshly verified implementation commit before this handoff-doc commit:** `79a57c5862e0ae34322326e19c2128b4d81e8a97`
+**Last behavior-changing implementation commit:** `31d87f112a89097ad863543ae26a0fe3023d19e7`
 
-**Fresh verification evidence:** GitHub Actions run `33086384092` on `79a57c...` completed successfully. Node suite: **40 tests passed, 0 failed**. `npm run build:web`: PASS (Vite production bundle). `npm run typecheck`: PASS.
+**Fresh implementation verification evidence:** GitHub Actions run `33087596429` on `31d87f...` completed successfully. Node suite: **40 tests passed, 0 failed**. `npm run build:web`: PASS (Vite production bundle). `npm run typecheck`: PASS for both the Node/shared and browser TypeScript projects.
 
-**Status:** The simulation, realtime authoritative server, and server-owned fictional trading slice are merged to `main`. The Stage-1 first-playable React/Vite client is implemented on `feat/stage1-web-client` and is pending final full-diff review, pull request CI, and merge.
+**Status:** The simulation, realtime authoritative server, and server-owned fictional trading slice are merged to `main`. The Stage-1 first-playable React/Vite client is implementation-complete on `feat/stage1-web-client` and is at the integration gate: current-head docs CI, final branch comparison/review, pull-request CI, then merge. Do not assume it is merged without checking git/PR state.
 
 **What works:**
 
@@ -338,13 +338,14 @@ If this snapshot and git disagree, trust git/test evidence and repair the snapsh
 - up to five immediately visible assets with Nova Motors selected by default when present;
 - live session-only price chart using received authoritative WebSocket snapshots, capped at 120 samples per asset;
 - compact Market Era / Market Live header with cash and portfolio value;
-- beginner whole-unit Buy/Sell ticket that submits intent only;
+- beginner whole-unit Buy/Sell ticket that submits intent only and exposes accessible grouped Buy/Sell controls;
 - position card with owned units, average cost, market value, and unrealized P/L;
 - displayed portfolio value and unrealized P/L stay live as authoritative WebSocket prices change via `portfolioProjection.ts`;
-- one top plain-language “Why it moved” story;
+- one top plain-language “Why it moved” story with a direction-matching visual cue;
 - one next objective instead of a wall of progression widgets;
 - responsive layout, keyboard focus treatment, and reduced-motion support;
-- Vite production build included in `npm test`.
+- Vite production build included in `npm test`;
+- root typecheck includes the strict browser TypeScript project.
 
 **Known limitations / intentional omissions:**
 
