@@ -1,5 +1,5 @@
 import type { AssetSnapshot } from "../../../../packages/shared/src/index";
-import { formatMoney } from "../format";
+import { formatMoney, marketChangeTone } from "../format";
 import type { PriceSample } from "../useMarketSession";
 
 export interface PriceChartProps {
@@ -38,11 +38,11 @@ export function PriceChart({ asset, samples }: PriceChartProps) {
   const latestY = latest
     ? PAD_Y + ((max - latest.price) / range) * drawableHeight
     : HEIGHT / 2;
-  const positive = asset.lastTickChangePct >= 0;
+  const marketTone = marketChangeTone(asset.lastTickChangePct);
   const label = `${asset.name} live session chart. Current price ${formatMoney(asset.price)}.`;
 
   return (
-    <figure className={`price-chart ${positive ? "is-positive" : "is-negative"}`}>
+    <figure className={`price-chart is-${marketTone}`}>
       <div className="chart-meta" aria-hidden="true">
         <span>LIVE SESSION</span>
         <span>{samples.length <= 1 ? "Waiting for the next live update…" : `${samples.length} updates`}</span>
