@@ -102,3 +102,151 @@ For every major screen later in development:
 8. Only then implement it.
 
 If a screen cannot pass this process, it is not ready to be built.
+
+---
+
+## First-screen reference brief — Market Overview
+
+This is the first production screen to design after the simulation foundation. **No production React implementation should begin until this brief becomes a visual mockup.**
+
+### Main job
+
+Let a beginner open the game and answer three questions almost immediately:
+
+1. **How am I doing?**
+2. **What is happening in the market?**
+3. **What looks interesting enough to inspect?**
+
+The Market Overview is not a trading terminal. It is a welcoming doorway into the economy.
+
+### Concrete references for this screen
+
+#### 1. Robinhood stock/detail hierarchy
+Reference: https://robinhood.com/us/en/support/articles/viewing-stock-detail-pages/
+
+Use:
+- prominent identity and current price before advanced metrics;
+- progressive detail rather than showing every statistic at once;
+- clear time/context around price movement;
+- obvious actions only when the user has chosen an asset.
+
+Do not copy:
+- the brokerage look;
+- chart-first identity;
+- dense financial-stat sections on the overview screen.
+
+#### 2. Duolingo core-tab redesign
+Reference: https://blog.duolingo.com/core-tabs-redesign/
+
+Use:
+- deliberate whitespace instead of wrapping every section in another card;
+- consistent header, type, spacing, and navigation rules;
+- each section keeping its own purpose while still feeling like one system;
+- the explicit lesson that **simplicity must not reduce clarity**.
+
+Do not copy:
+- character-heavy educational framing;
+- oversized decoration with no information purpose.
+
+#### 3. Duolingo guided home screen
+Reference: https://blog.duolingo.com/new-duolingo-home-screen-design/
+
+Use:
+- one obvious next step for a beginner;
+- guided progression embedded in the main experience rather than a separate tutorial maze;
+- optional depth living around the primary path instead of competing with it.
+
+Do not copy:
+- a literal lesson path;
+- game-map navigation for financial assets.
+
+#### 4. Coinbase Design System
+References:
+- https://cds.coinbase.com/
+- https://www.coinbase.com/blog/Coinbase-has-open-sourced-its-design-system
+
+Use:
+- reusable spacing/type/navigation primitives;
+- accessible focus/keyboard behavior from the component level;
+- responsive layout rules rather than one-off screen hacks;
+- a small coherent component vocabulary that can scale as financial features expand.
+
+Do not copy:
+- exchange-style visual density;
+- crypto-dashboard conventions merely because this game contains crypto.
+
+### Beginner-visible information hierarchy
+
+Desktop first-pass hierarchy:
+
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│ Market Era     Era status                    Alerts   Profile     │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  YOUR PORTFOLIO                                                   │
+│  $12,480                    +2.4% this Era                        │
+│  Short friendly status sentence                                  │
+│                                                                  │
+├──────────────────────────────────────┬───────────────────────────┤
+│                                      │                           │
+│  WHAT'S HAPPENING                    │  YOUR NEXT GOAL           │
+│  One strong market/news story        │  One career objective     │
+│  + simple market mood                │  + progress               │
+│                                      │                           │
+├──────────────────────────────────────┴───────────────────────────┤
+│                                                                  │
+│  EXPLORE THE MARKET                                               │
+│  [Stocks] [Crypto]                                                │
+│                                                                  │
+│  Logo  Nova Motors        $42.18     ▲ 3.2%   simple reason      │
+│  Logo  Luma Labs          $78.40     ▲ 1.1%   simple reason      │
+│  Logo  Harvest Grid       $31.75     ▼ 0.8%   simple reason      │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### What is deliberately absent
+
+The first screen does **not** permanently show:
+- candlesticks;
+- P/E, EPS, RSI, or other unexplained finance metrics;
+- order forms;
+- company-control systems;
+- a grid of every available feature;
+- multiple currencies/resources;
+- five simultaneous news feeds;
+- giant leaderboards;
+- advanced chart controls;
+- every alert condition;
+- a separate card for every unlocked mechanic.
+
+### Progressive disclosure
+
+Selecting an asset opens its detail flow. That flow may reveal:
+
+1. identity + price + simple movement reason;
+2. friendly chart;
+3. buy/sell action;
+4. recent news;
+5. beginner research labels;
+6. increasingly advanced data only after the player has reason to use it.
+
+### Visual identity for the mockup
+
+The eventual mockup should test:
+- a bright light background rather than finance-black;
+- pastel/soft accent surfaces with strong contrast;
+- rounded but not toy-like geometry;
+- distinctive fictional company logos/colors;
+- strong typography with few sizes;
+- sparklines only where they improve scanning;
+- gains/losses communicated by icon/direction/text as well as color;
+- subtle animation for live price changes without making the screen twitch constantly;
+- generous whitespace as an explicit design element.
+
+### Crowding rule
+
+At ordinary desktop size, a beginner should be able to describe the purpose of **every visible region** without opening help. If a region exists only because there was empty space, remove it.
+
+The next UI step is a visual mockup of this exact hierarchy. Production UI code remains blocked until that mockup is reviewed.
