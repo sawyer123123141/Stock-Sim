@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsc -p tsconfig.json && node --test tests/*.test.mjs",
+    "test": "tsc -p tsconfig.json && node --test tests/*.test.mjs && npm run build:web",
     "demo": "tsc -p tsconfig.json && node tools/demo.mjs",
     "start:server": "npm run build && node dist/apps/server/src/index.js",
     "dev:web": "vite --config apps/web/vite.config.ts",
