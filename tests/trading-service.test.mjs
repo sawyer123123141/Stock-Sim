@@ -121,6 +121,20 @@ test("unknown assets reject without changing state", async () => {
   assert.deepEqual(await service.getPortfolio("demo-player"), before);
 });
 
+test("an invalid execution clock cannot commit a trade before failing", async () => {
+  const { runtime, nova } = setup();
+  const store = new InMemoryPortfolioStore();
+  const service = createTradingService({ runtime, store, now: () => Number.NaN });
+  const before = await service.getPortfolio("demo-player");
+
+  await assert.rejects(
+    () => service.executeTrade("demo-player", { assetId: nova.id, side: "buy", quantity: 1 }),
+    (error) => error?.code === "INVALID_TRADE"
+  );
+
+  assert.deepEqual(await service.getPortfolio("demo-player"), before);
+});
+
 test("portfolio valuation follows the current authoritative market price", async () => {
   const { service, runtime, nova, setNow } = setup();
   const bought = await service.executeTrade("demo-player", { assetId: nova.id, side: "buy", quantity: 10 });
