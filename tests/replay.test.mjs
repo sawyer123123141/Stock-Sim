@@ -12,7 +12,7 @@ function replay() {
     pulse: { simulated: -0.1, player: 0.8 }
   };
   for (let i = 0; i < 200; i += 1) {
-    market = tickMarket(market, 1_000_000 + i * 1000, pressure, rng);
+    market = tickMarket(market, 1_000_000 + i * 1000, 1_000, pressure, rng);
   }
   return market;
 }

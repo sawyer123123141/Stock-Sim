@@ -24,7 +24,7 @@ export interface AssetState {
   kind: AssetKind;
   sector: string;
   price: number;
-  changePct: number;
+  lastTickChangePct: number;
   baselineVolatility: number;
   sentiment: number;
   momentum: number;
@@ -65,7 +65,7 @@ export interface AssetSnapshot {
   name: string;
   kind: AssetKind;
   price: number;
-  changePct: number;
+  lastTickChangePct: number;
   reasons: MovementReason[];
 }
 
@@ -86,6 +86,7 @@ export interface MovementContribution {
 export interface TickContext {
   demand: MarketPressure;
   eventEffect: number;
+  deltaMs: number;
 }
 
 export interface AssetTickResult {

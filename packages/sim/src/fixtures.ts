@@ -1,7 +1,7 @@
 import type { AssetState, MarketState } from "../../shared/src/index.js";
 
-function asset(input: Omit<AssetState, "changePct" | "reasons">): AssetState {
-  return { ...input, changePct: 0, reasons: [] };
+function asset(input: Omit<AssetState, "lastTickChangePct" | "reasons">): AssetState {
+  return { ...input, lastTickChangePct: 0, reasons: [] };
 }
 
 export function createSeedMarket(): MarketState {
