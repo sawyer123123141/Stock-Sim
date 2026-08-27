@@ -101,12 +101,13 @@ test("stage 1 trade flow is one whole-unit Buy Sell path without advanced orders
 });
 
 test("stage 1 ends with one movement story, one objective, and responsive accessible polish", async () => {
-  const [app, story, objective, styles, tradeStyles, readme] = await Promise.all([
+  const [app, story, objective, styles, tradeStyles, insightStyles, readme] = await Promise.all([
     text("apps/web/src/App.tsx"),
     text("apps/web/src/components/MovementStory.tsx"),
     text("apps/web/src/components/NextObjective.tsx"),
     text("apps/web/src/styles.css"),
     text("apps/web/src/trade.css"),
+    text("apps/web/src/insights.css"),
     text("README.md")
   ]);
 
@@ -116,8 +117,8 @@ test("stage 1 ends with one movement story, one objective, and responsive access
   assert.match(story, /No major driver is dominating this move right now\./);
   assert.match(objective, /Make your first investment/);
   assert.match(objective, /Own 2 different assets/);
-  assert.match(`${styles}\n${tradeStyles}`, /@media\s*\(max-width:/);
-  assert.match(`${styles}\n${tradeStyles}`, /prefers-reduced-motion/);
+  assert.match(`${styles}\n${tradeStyles}\n${insightStyles}`, /@media\s*\(max-width:/);
+  assert.match(`${styles}\n${tradeStyles}\n${insightStyles}`, /prefers-reduced-motion/);
   assert.match(readme, /npm run start:server/);
   assert.match(readme, /npm run dev:web/);
   assert.match(readme, /npm run build:web/);
