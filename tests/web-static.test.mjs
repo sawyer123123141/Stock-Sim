@@ -28,3 +28,29 @@ test("stage 1 web client has a Vite mount boundary and root scripts", async () =
   assert.match(main, /<App\s*\/?>/);
   assert.match(app, /export\s+function\s+App/);
 });
+
+test("browser transport sends intent only and session state follows authoritative snapshots", async () => {
+  const [api, session] = await Promise.all([
+    text("apps/web/src/api.ts"),
+    text("apps/web/src/useMarketSession.ts")
+  ]);
+
+  assert.match(api, /fetchMarket/);
+  assert.match(api, /fetchPortfolio/);
+  assert.match(api, /submitTrade/);
+  assert.match(api, /openMarketSocket/);
+  assert.match(api, /assetId/);
+  assert.match(api, /side/);
+  assert.match(api, /quantity/);
+  assert.doesNotMatch(api, /unitPrice\s*:/, "client must not submit an execution price");
+  assert.doesNotMatch(api, /playerId\s*:/, "client must not choose canonical player identity");
+  assert.doesNotMatch(api, /cash\s*:/, "client must not submit canonical cash");
+
+  assert.match(session, /selectedAssetId/);
+  assert.match(session, /priceHistory/);
+  assert.match(session, /tradePending/);
+  assert.match(session, /tradeError/);
+  assert.match(session, /120/);
+  assert.match(session, /generatedAt/);
+  assert.match(session, /nova/);
+});
