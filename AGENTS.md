@@ -167,6 +167,7 @@ For the first playable:
 - positions use aggregate average cost rather than exposed tax lots;
 - rejected trades do not mutate portfolio state;
 - per-player in-memory transactions serialize concurrent mutations;
+- a queued trade captures authoritative price and execution time only when its transaction reaches the front of that queue, not when the request first arrives;
 - successful trades do **not** feed market pressure yet. Accounting correctness and market-impact tuning remain separate tasks.
 
 ### Persistence boundary
@@ -304,7 +305,7 @@ If this snapshot and git disagree, trust git/test evidence and repair the snapsh
 
 **Active implementation branch:** `feat/first-trading-slice`
 
-**Last freshly verified implementation commit before handoff docs:** `fa3a782eab6cb911265d25f326a0139a23115e06`
+**Last freshly verified implementation commit before handoff docs:** `8e2d593b7a4f014804fddc529329b645248e0540`
 
 **Status:** The pure market engine and realtime market server are on `main`. The first server-owned in-memory portfolio/trading slice is implemented on the active branch and is pending final branch review/merge.
 
@@ -326,17 +327,18 @@ If this snapshot and git disagree, trust git/test evidence and repair the snapsh
 - no short selling, no fees, no advanced orders;
 - aggregate average-cost positions and live market valuation;
 - transactional per-player in-memory portfolio mutation;
+- queued trades use the current authoritative market price and time at execution, not a stale pre-queue snapshot;
 - stable HTTP 4xx responses for invalid trade, missing asset, insufficient cash, and insufficient holdings;
 - rejected trades leave portfolio state unchanged;
 - runnable server entrypoint and `npm run start:server` command;
 - GitHub Actions verification;
 - console demo.
 
-**Fresh verification evidence for implementation commit `fa3a782e...`:**
-- GitHub Actions run `33075336631` executed `npm test` successfully.
-- Node suite: **30 tests passed, 0 failed**.
+**Fresh verification evidence for implementation commit `8e2d593b...`:**
+- GitHub Actions run `33075809564` executed `npm test` successfully.
+- Node suite: **31 tests passed, 0 failed**.
 - `npm run typecheck`: PASS.
-- The suite covers market simulation/replay/timing, server lifecycle, HTTP/WebSocket market transport, portfolio/trading accounting, concurrent portfolio transactions, trading HTTP routes/errors, live valuation, and the regression that a failed execution clock cannot mutate the portfolio.
+- The suite covers market simulation/replay/timing, server lifecycle, HTTP/WebSocket market transport, portfolio/trading accounting, concurrent portfolio transactions, trading HTTP routes/errors, live valuation, rejected-trade immutability, and queued-trade execution-time price/time capture.
 
 **Known limitations / intentional omissions:**
 - portfolio state is in memory and resets on server restart;
