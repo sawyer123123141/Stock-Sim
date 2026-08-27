@@ -1,6 +1,8 @@
 import { AssetRail } from "./components/AssetRail";
 import { MarketHeader } from "./components/MarketHeader";
+import { PositionCard } from "./components/PositionCard";
 import { PriceChart } from "./components/PriceChart";
+import { TradeTicket } from "./components/TradeTicket";
 import { formatMoney, formatSignedPercent } from "./format";
 import { useMarketSession } from "./useMarketSession";
 
@@ -33,6 +35,7 @@ export function App() {
   }
 
   const asset = session.selectedAsset;
+  const position = session.selectedPosition;
   const positive = asset.lastTickChangePct >= 0;
 
   return (
@@ -78,6 +81,22 @@ export function App() {
 
           <PriceChart asset={asset} samples={session.selectedHistory} />
         </section>
+
+        <aside className="trade-column" aria-label={`${asset.symbol} trade and position`}>
+          <TradeTicket
+            asset={asset}
+            cash={session.portfolio.cash}
+            ownedQuantity={position?.quantity ?? 0}
+            pending={session.tradePending}
+            error={session.tradeError}
+            onTrade={session.trade}
+          />
+          <PositionCard
+            key={`${asset.id}-${session.lastTradeId ?? "initial"}`}
+            asset={asset}
+            position={position}
+          />
+        </aside>
       </div>
     </main>
   );
