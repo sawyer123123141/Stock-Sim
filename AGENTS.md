@@ -77,9 +77,21 @@ Before accepting a feature, ask:
 
 If several answers are weak, simplify or defer it.
 
-## 6. UI direction
+## 6. UI direction and mandatory design gate
 
-For major production UI work, inspect concrete references and the current-direction document before coding.
+Never begin a major production screen from a generic prompt such as “make a stock dashboard.” Before substantial UI implementation:
+
+1. define the screen's single main job;
+2. define what a beginner sees immediately;
+3. define what deeper information is progressively revealed later;
+4. gather **2–4 concrete visual/product references** for that exact problem;
+5. record what each reference contributes and what must not be copied;
+6. make an information hierarchy or wireframe;
+7. make a Market Era visual mockup/prototype when the change is visually substantial;
+8. review crowding, terminology, typography, spacing, motion, accessibility, and scaling;
+9. only then implement the production screen.
+
+`docs/ui-reference-research.md` and `docs/mockups/2026-08-27-current-ui-direction.md` are mandatory reading for major UI work. A small polish fix that does not change the information architecture does not require restarting the entire design process.
 
 Current reviewed direction:
 
@@ -254,7 +266,33 @@ Never claim a green suite from an earlier tree after changing code.
 - Require fresh PR-triggered CI before merge, not only push CI.
 - Do not claim a merge is complete until the merge commit exists.
 
-## 11. Current State Snapshot
+## 11. Context compaction / handoff protocol
+
+Use this whenever a long work session ends, another agent may take over, context is about to be compacted, or a subsystem reaches a checkpoint.
+
+Before handoff:
+
+1. stop at a coherent boundary;
+2. run current verification commands on the actual head;
+3. inspect branch status and diff;
+4. update plan progress when useful;
+5. update the Current State Snapshot with branch/commit, working behavior, verification evidence, blockers, and exact next task;
+6. update README when public setup/status changed;
+7. update the master spec only for an approved product decision;
+8. commit/push the handoff changes;
+9. confirm the remote head exists.
+
+Fresh-agent resume:
+
+1. read the repository in the order listed above;
+2. inspect the canonical branch and any active branch recorded below;
+3. verify the recorded commits exist;
+4. rerun current verification before editing;
+5. continue from repository/test evidence rather than guesses about old chat context.
+
+If this snapshot and git disagree, trust git/test evidence and repair the snapshot.
+
+## 12. Current State Snapshot
 
 **Canonical merge target:** `main`
 
@@ -288,7 +326,7 @@ Never claim a green suite from an earlier tree after changing code.
 - no Era lifecycle, leaderboards/social, or company-control systems;
 - current visual treatment is a first-playable foundation, not a locked final theme.
 
-**Integration status:** Stage 1.1 implementation and push-CI are green. Next integration steps are: current-head docs CI, inspect branch/PR diff for scope creep, open PR, require fresh pull-request-triggered CI, and merge only if the reviewed head stays unchanged and green.
+**Integration status:** Stage 1.1 implementation and push-CI are green. PR #4 is open. Review caught and repaired an over-aggressive `AGENTS.md` compaction that had weakened the mandatory UI/handoff guardrails. Require current-head push CI and fresh PR-triggered CI before merge.
 
 **Exact next product task after Stage 1.1 merge:** manually exercise the first playable as a user journey on a real screen and use observed friction to choose the next narrow engineering slice. Do not immediately add another major subsystem just because it exists on the roadmap.
 
