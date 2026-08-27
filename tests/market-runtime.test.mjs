@@ -49,3 +49,35 @@ test("subscribers receive snapshots only after successful advances", () => {
 
   assert.deepEqual(sequences, [1, 2]);
 });
+
+test("start uses the injected clock and scheduler, and stop cancels future ticks", () => {
+  let nowMs = 1_000;
+  let scheduledTick;
+  let cancelled = false;
+
+  const runtime = createMarketRuntime({
+    initialState: createSeedMarket(),
+    seed: 9,
+    clock: () => nowMs,
+    tickIntervalMs: 5_000,
+    scheduler: {
+      every(intervalMs, tick) {
+        assert.equal(intervalMs, 5_000);
+        scheduledTick = tick;
+        return () => {
+          cancelled = true;
+        };
+      }
+    }
+  });
+
+  runtime.start();
+  assert.equal(runtime.snapshot().sequence, 0);
+
+  nowMs = 6_000;
+  scheduledTick();
+  assert.equal(runtime.snapshot().sequence, 1);
+
+  runtime.stop();
+  assert.equal(cancelled, true);
+});
