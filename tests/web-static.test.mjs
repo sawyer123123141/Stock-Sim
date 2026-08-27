@@ -54,3 +54,23 @@ test("browser transport sends intent only and session state follows authoritativ
   assert.match(session, /generatedAt/);
   assert.match(session, /nova/);
 });
+
+test("stage 1 market surface stays focused on assets and a credible chart", async () => {
+  const [app, chart, rail, header] = await Promise.all([
+    text("apps/web/src/App.tsx"),
+    text("apps/web/src/components/PriceChart.tsx"),
+    text("apps/web/src/components/AssetRail.tsx"),
+    text("apps/web/src/components/MarketHeader.tsx")
+  ]);
+  const combined = `${app}\n${chart}\n${rail}\n${header}`;
+
+  assert.match(app, /<MarketHeader/);
+  assert.match(app, /<AssetRail/);
+  assert.match(app, /<PriceChart/);
+  assert.match(chart, /role=["']img["']/);
+  assert.match(rail, /slice\(0,\s*5\)/);
+  assert.match(rail, /aria-pressed/);
+  assert.match(header, /MARKET ERA/);
+  assert.match(header, /Market Live/);
+  assert.doesNotMatch(combined, /Shop|Gems|Energy|Limit Order|Margin|Top Movers/);
+});
