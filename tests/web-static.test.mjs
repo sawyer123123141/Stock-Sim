@@ -23,6 +23,7 @@ test("stage 1 web client has a Vite mount boundary and root scripts", async () =
   assert.equal(pkg.scripts["dev:web"], "vite --config apps/web/vite.config.ts");
   assert.equal(pkg.scripts["build:web"], "vite build --config apps/web/vite.config.ts");
   assert.match(pkg.scripts.test, /npm run build:web/, "npm test must compile the browser client in CI");
+  assert.match(pkg.scripts.typecheck, /apps\/web\/tsconfig\.json/, "root typecheck must include the browser client");
   assert.match(html, /id=["']root["']/);
   assert.match(main, /createRoot/);
   assert.match(main, /<App\s*\/?>/);
