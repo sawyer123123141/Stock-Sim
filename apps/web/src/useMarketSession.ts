@@ -8,6 +8,7 @@ import type {
   TradeSide
 } from "../../../packages/shared/src/index";
 import { fetchMarket, fetchPortfolio, openMarketSocket, submitTrade } from "./api";
+import { projectPortfolioToMarket } from "./portfolioProjection";
 
 export interface PriceSample {
   atMs: number;
@@ -116,14 +117,19 @@ export function useMarketSession(): MarketSession {
     setTradeError(null);
   }, []);
 
+  const livePortfolio = useMemo(
+    () => portfolio && market ? projectPortfolioToMarket(portfolio, market) : portfolio,
+    [portfolio, market]
+  );
+
   const selectedAsset = useMemo(
     () => market?.assets.find((asset) => asset.id === selectedAssetId) ?? null,
     [market, selectedAssetId]
   );
 
   const selectedPosition = useMemo(
-    () => portfolio?.positions.find((position) => position.assetId === selectedAssetId) ?? null,
-    [portfolio, selectedAssetId]
+    () => livePortfolio?.positions.find((position) => position.assetId === selectedAssetId) ?? null,
+    [livePortfolio, selectedAssetId]
   );
 
   const selectedHistory = priceHistory[selectedAssetId] ?? [];
@@ -151,7 +157,7 @@ export function useMarketSession(): MarketSession {
 
   return {
     market,
-    portfolio,
+    portfolio: livePortfolio,
     loading,
     error,
     connectionNotice,
