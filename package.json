@@ -8,7 +8,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p apps/web/tsconfig.json --noEmit",
+    "typecheck:web": "tsc -p apps/web/tsconfig.json --noEmit",
     "test": "tsc -p tsconfig.json && node --test tests/*.test.mjs && npm run build:web",
     "demo": "tsc -p tsconfig.json && node tools/demo.mjs",
     "start:server": "npm run build && node dist/apps/server/src/index.js",
