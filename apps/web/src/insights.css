@@ -1,0 +1,116 @@
+.insight-strip {
+  width: min(1500px, 100%);
+  margin: 14px auto 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 14px;
+}
+
+.insight-card {
+  min-width: 0;
+  padding: 15px 17px;
+  border: 1px solid var(--border);
+  border-radius: 17px;
+  background: rgba(10, 22, 40, 0.78);
+}
+
+.movement-story {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.insight-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(141, 125, 255, 0.18);
+  border-radius: 11px;
+  background: rgba(141, 125, 255, 0.08);
+  color: #b5adff;
+  font-weight: 900;
+}
+
+.insight-card h2 {
+  margin: 4px 0 4px;
+  font-size: 0.93rem;
+}
+
+.insight-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.next-objective {
+  display: grid;
+  align-content: center;
+  gap: 11px;
+}
+
+.objective-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 5px 12px;
+}
+
+.objective-copy .section-kicker {
+  width: 100%;
+}
+
+.objective-copy h2 {
+  margin: 0;
+}
+
+.objective-copy p {
+  color: #dbe3f6;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.objective-progress {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.objective-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent-2), var(--accent));
+  transition: width 220ms ease;
+}
+
+@media (max-width: 840px) {
+  .insight-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .movement-story {
+    grid-template-columns: 1fr;
+  }
+
+  .insight-icon {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
