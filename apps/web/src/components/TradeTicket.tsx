@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   AssetSnapshot,
   TradeFill,
   TradeSide
 } from "../../../../packages/shared/src/index";
 import { formatMoney } from "../format";
+import { finalSaleTicketReset } from "../tradeTicketState";
 
 export interface TradeTicketProps {
   asset: AssetSnapshot;
@@ -27,6 +28,13 @@ export function TradeTicket({
 }: TradeTicketProps) {
   const [side, setSide] = useState<TradeSide>("buy");
   const [quantityText, setQuantityText] = useState("1");
+
+  useEffect(() => {
+    const reset = finalSaleTicketReset(asset.id, lastFill, ownedQuantity);
+    if (!reset) return;
+    setSide(reset.side);
+    setQuantityText(reset.quantityText);
+  }, [asset.id, lastFill?.assetId, lastFill?.id, lastFill?.side, ownedQuantity]);
 
   const quantity = Number(quantityText);
   const quantityIsValid = Number.isSafeInteger(quantity) && quantity >= 1;

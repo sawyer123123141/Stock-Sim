@@ -92,6 +92,7 @@ export function App() {
 
         <aside className="trade-column" aria-label={`${asset.symbol} trade and position`}>
           <TradeTicket
+            key={asset.id}
             asset={asset}
             cash={session.portfolio.cash}
             ownedQuantity={position?.quantity ?? 0}
