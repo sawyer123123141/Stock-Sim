@@ -5,10 +5,30 @@ import { createSeedMarket } from "../dist/packages/sim/src/fixtures.js";
 import { createMarketRuntime } from "../dist/apps/server/src/marketRuntime.js";
 import { buildMarketApp } from "../dist/apps/server/src/app.js";
 
-function openSocket(url) {
+function connectAndReadFirst(url) {
   return new Promise((resolve, reject) => {
     const socket = new WebSocket(url);
-    socket.once("open", () => resolve(socket));
+    let opened = false;
+    let firstMessage;
+
+    const maybeResolve = () => {
+      if (opened && firstMessage !== undefined) {
+        resolve({ socket, firstMessage });
+      }
+    };
+
+    socket.once("open", () => {
+      opened = true;
+      maybeResolve();
+    });
+    socket.once("message", (data) => {
+      try {
+        firstMessage = JSON.parse(data.toString());
+        maybeResolve();
+      } catch (error) {
+        reject(error);
+      }
+    });
     socket.once("error", reject);
   });
 }
@@ -41,9 +61,9 @@ test("/ws/market sends the current snapshot and future authoritative updates", a
     const address = app.server.address();
     assert.ok(address && typeof address !== "string");
 
-    socket = await openSocket(`ws://127.0.0.1:${address.port}/ws/market`);
-    const initial = await nextJsonMessage(socket);
-    assert.deepEqual(initial, runtime.snapshot());
+    const connected = await connectAndReadFirst(`ws://127.0.0.1:${address.port}/ws/market`);
+    socket = connected.socket;
+    assert.deepEqual(connected.firstMessage, runtime.snapshot());
 
     const updatePromise = nextJsonMessage(socket);
     const expected = runtime.advanceTo(6_000);
