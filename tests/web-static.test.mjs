@@ -74,3 +74,28 @@ test("stage 1 market surface stays focused on assets and a credible chart", asyn
   assert.match(header, /Market Live/);
   assert.doesNotMatch(combined, /Shop|Gems|Energy|Limit Order|Margin|Top Movers/);
 });
+
+test("stage 1 trade flow is one whole-unit Buy Sell path without advanced orders", async () => {
+  const [app, ticket, position] = await Promise.all([
+    text("apps/web/src/App.tsx"),
+    text("apps/web/src/components/TradeTicket.tsx"),
+    text("apps/web/src/components/PositionCard.tsx")
+  ]);
+  const combined = `${app}\n${ticket}\n${position}`;
+
+  assert.match(app, /<TradeTicket/);
+  assert.match(app, /<PositionCard/);
+  assert.match(ticket, />Buy</);
+  assert.match(ticket, />Sell</);
+  assert.match(ticket, /type=["']number["']/);
+  assert.match(ticket, /min=["']1["']/);
+  assert.match(ticket, /step=["']1["']/);
+  assert.match(ticket, /Estimated total/);
+  assert.match(ticket, /Confirm \{side === "buy" \? "Buy" : "Sell"\}/);
+  assert.match(ticket, /Cash available/);
+  assert.match(ticket, /Owned/);
+  assert.match(position, /Average cost/);
+  assert.match(position, /Market value/);
+  assert.match(position, /Unrealized/);
+  assert.doesNotMatch(combined, /Limit Order|Stop Loss|Take Profit|Margin|Leverage/);
+});
