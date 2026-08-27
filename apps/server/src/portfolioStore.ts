@@ -11,7 +11,10 @@ export interface PortfolioState {
 
 export interface PortfolioStore {
   read(playerId: string): Promise<PortfolioState>;
-  transact<T>(playerId: string, mutation: (working: PortfolioState) => T): Promise<T>;
+  transact<T>(
+    playerId: string,
+    mutation: (working: PortfolioState) => T | Promise<T>
+  ): Promise<T>;
 }
 
 const DEFAULT_STARTING_CASH_CENTS = 1_000_000;
@@ -54,7 +57,10 @@ export class InMemoryPortfolioStore implements PortfolioStore {
     return clonePortfolio(this.getOrCreate(playerId));
   }
 
-  async transact<T>(playerId: string, mutation: (working: PortfolioState) => T): Promise<T> {
+  async transact<T>(
+    playerId: string,
+    mutation: (working: PortfolioState) => T | Promise<T>
+  ): Promise<T> {
     const previous = this.queues.get(playerId) ?? Promise.resolve();
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
@@ -66,7 +72,7 @@ export class InMemoryPortfolioStore implements PortfolioStore {
     await previous;
     try {
       const working = clonePortfolio(this.getOrCreate(playerId));
-      const result = mutation(working);
+      const result = await mutation(working);
       this.portfolios.set(playerId, clonePortfolio(working));
       return result;
     } finally {
