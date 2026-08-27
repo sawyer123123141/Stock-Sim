@@ -88,6 +88,7 @@ test("stage 1 trade flow is one whole-unit Buy Sell path without advanced orders
   assert.match(app, /<PositionCard/);
   assert.match(ticket, />Buy</);
   assert.match(ticket, />Sell</);
+  assert.match(ticket, /role=["']group["']/);
   assert.match(ticket, /type=["']number["']/);
   assert.match(ticket, /min=["']1["']/);
   assert.match(ticket, /step=["']1["']/);
@@ -115,6 +116,7 @@ test("stage 1 ends with one movement story, one objective, and responsive access
   assert.equal((app.match(/<MovementStory/g) ?? []).length, 1);
   assert.equal((app.match(/<NextObjective/g) ?? []).length, 1);
   assert.match(story, /reasons\[0\]/);
+  assert.match(story, /strongestReason\?\.direction/);
   assert.match(story, /No major driver is dominating this move right now\./);
   assert.match(objective, /Make your first investment/);
   assert.match(objective, /Own 2 different assets/);
