@@ -10,9 +10,12 @@ export interface BuildMarketAppOptions {
 export function buildMarketApp(options: BuildMarketAppOptions): FastifyInstance {
   const app = Fastify({ logger: false });
 
-  // Register websocket support before any routes so upgrades are intercepted correctly.
+  // WebSocket support must initialize before routes are declared so its onRoute hook
+  // can transform websocket routes before Fastify finalizes them.
   app.register(websocket);
-  registerMarketRoutes(app, { runtime: options.runtime });
+  app.register(async (routeScope) => {
+    registerMarketRoutes(routeScope, { runtime: options.runtime });
+  });
 
   return app;
 }
