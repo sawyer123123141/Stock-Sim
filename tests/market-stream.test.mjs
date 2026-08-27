@@ -10,9 +10,6 @@ function openSocket(url) {
     const socket = new WebSocket(url);
     socket.once("open", () => resolve(socket));
     socket.once("error", reject);
-    socket.once("unexpected-response", (_request, response) => {
-      reject(new Error(`WebSocket upgrade failed with HTTP ${response.statusCode}`));
-    });
   });
 }
 
@@ -36,20 +33,24 @@ test("/ws/market sends the current snapshot and future authoritative updates", a
     startedAtMs: 1_000
   });
   const app = buildMarketApp({ runtime });
+  let socket;
 
   await app.listen({ host: "127.0.0.1", port: 0 });
-  const address = app.server.address();
-  assert.ok(address && typeof address !== "string");
 
-  const socket = await openSocket(`ws://127.0.0.1:${address.port}/ws/market`);
-  const initial = await nextJsonMessage(socket);
-  assert.deepEqual(initial, runtime.snapshot());
+  try {
+    const address = app.server.address();
+    assert.ok(address && typeof address !== "string");
 
-  const updatePromise = nextJsonMessage(socket);
-  const expected = runtime.advanceTo(6_000);
-  const update = await updatePromise;
-  assert.deepEqual(update, expected);
+    socket = await openSocket(`ws://127.0.0.1:${address.port}/ws/market`);
+    const initial = await nextJsonMessage(socket);
+    assert.deepEqual(initial, runtime.snapshot());
 
-  socket.close();
-  await app.close();
+    const updatePromise = nextJsonMessage(socket);
+    const expected = runtime.advanceTo(6_000);
+    const update = await updatePromise;
+    assert.deepEqual(update, expected);
+  } finally {
+    if (socket && socket.readyState !== WebSocket.CLOSED) socket.terminate();
+    await app.close();
+  }
 });
