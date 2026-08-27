@@ -108,6 +108,15 @@ export function createTradingService(options: TradingServiceOptions): TradingSer
       invalid("Trade value is outside the supported range.");
     }
 
+    // Validate and format anything that can fail before committing portfolio state.
+    // A rejected request must never leave behind a successful trade.
+    const executedAtMs = now();
+    const executedAtDate = new Date(executedAtMs);
+    if (!Number.isFinite(executedAtMs) || Number.isNaN(executedAtDate.getTime())) {
+      invalid("Execution time is invalid.");
+    }
+    const executedAt = executedAtDate.toISOString();
+
     const portfolioState = await options.store.transact(playerId, (portfolio) => {
       const existing = portfolio.positions[asset.id];
 
@@ -150,9 +159,6 @@ export function createTradingService(options: TradingServiceOptions): TradingSer
       };
     });
 
-    const executedAtMs = now();
-    if (!Number.isFinite(executedAtMs)) invalid("Execution time is invalid.");
-
     const fill = {
       id: `trade-${nextTradeId++}`,
       assetId: asset.id,
@@ -161,7 +167,7 @@ export function createTradingService(options: TradingServiceOptions): TradingSer
       quantity: intent.quantity,
       unitPrice: unitPriceCents / 100,
       total: totalCents / 100,
-      executedAt: new Date(executedAtMs).toISOString()
+      executedAt
     };
 
     return {
