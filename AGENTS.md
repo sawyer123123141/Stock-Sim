@@ -37,13 +37,14 @@ Existing code is evidence, not automatically the correct product decision.
 
 ### Known plan amendments
 
-The first implementation plan was written before the reviewed prototype and is partly historical. In particular:
+The original market-simulation plan is partly historical. Current amendments:
 
-- examples using `changePct` should now use `lastTickChangePct` for the most recent simulation tick;
-- tick behavior must receive explicit elapsed time (`deltaMs`); never assume every function call represents the same amount of market time;
-- the project still uses Node's built-in test runner rather than the planned Vitest/Zod stack;
-- Fastify and WebSocket dependencies are now available and the first authoritative runtime/server boundary is implemented on `feat/authoritative-market-runtime`;
-- forecast/prediction ideas are not part of the current implementation. Do not add currency-staking or wagering mechanics. Any future forecast challenge must remain a non-wager learning/gameplay interaction and must comply with current safety requirements.
+- examples using `changePct` should use `lastTickChangePct` for the most recent simulation tick;
+- tick behavior receives explicit elapsed time (`deltaMs`); never assume every function call represents the same amount of market time;
+- the project uses Node's built-in test runner rather than the originally proposed Vitest/Zod stack;
+- Fastify and WebSocket dependencies are available; the authoritative runtime/server boundary was merged to `main` through PR #1;
+- the first in-memory portfolio/trading slice is defined by `docs/superpowers/specs/2026-08-27-first-trading-slice-design.md` and its matching plan;
+- forecast/prediction ideas are not part of the current implementation. Do not add currency-staking or wagering mechanics. Any future forecast challenge must remain a non-wager learning/gameplay interaction and comply with current safety requirements.
 
 When a future plan replaces these decisions, update this section.
 
@@ -112,15 +113,15 @@ The exact theme is still subject to refinement. Do not mistake a neon treatment 
 
 ```text
 apps/web/         Planned React + Vite client; display/input only.
-apps/server/      Authoritative Fastify + WebSocket runtime.
+apps/server/      Authoritative Fastify + WebSocket market/trading runtime.
 packages/sim/     Pure deterministic market simulation engine.
 packages/shared/  Shared domain/wire contracts.
-tests/            Behavior, replay, transport, and lifecycle tests.
+tests/            Behavior, replay, transport, trading, and lifecycle tests.
 tools/            Small development/demo utilities only.
 docs/             Research, specs, plans, and design constraints.
 ```
 
-### Current implemented foundation
+### Pure simulation foundation
 
 `packages/sim/` is intentionally independent of React, Fastify, databases, wall-clock globals, and `Math.random()`.
 
@@ -136,20 +137,43 @@ Pure simulation receives state, elapsed time, pressure, events, and RNG explicit
 
 Do not make scheduling frequency secretly change game balance.
 
-`apps/server/` now wraps the pure engine without moving game rules into infrastructure. The runtime owns its state and seeded RNG, advances only when time moves forward, can run from an injected or system scheduler, publishes snapshots to subscribers, and is coupled to Fastify listener lifecycle through `server.ts`.
+### Authoritative server boundary
 
-The current transport boundary provides:
+`apps/server/` wraps the pure engine without moving game rules into infrastructure. The runtime owns market state and seeded RNG, advances only when time moves forward, can run from an injected or system scheduler, publishes snapshots to subscribers, and is coupled to Fastify listener lifecycle through `server.ts`.
 
-- `GET /api/market` for the current authoritative snapshot;
-- `WS /ws/market` for the current snapshot on connection plus future authoritative updates.
+Current market transport:
 
-The client remains display/input only. Future trade requests must express player intent to the server; clients must never assign canonical balances, holdings, or prices.
+- `GET /api/market` — current authoritative market snapshot;
+- `WS /ws/market` — current snapshot on connection plus future authoritative updates.
+
+The first trading slice adds a separate authoritative accounting boundary:
+
+- `GET /api/portfolio` — server-derived demo-player cash, holdings, and live valuation;
+- `POST /api/trades` — immediate fictional trade intent containing only `assetId`, `side`, and integer `quantity`.
+
+The client never supplies canonical execution price, balance, holdings, or an arbitrary player ID.
+
+### First trading rules
+
+For the first playable:
+
+- starting cash: exactly **$10,000.00 fictional money**;
+- whole units only; no fractional shares/coins;
+- immediate market orders only;
+- no short selling;
+- zero fees and zero spread;
+- no margin, leverage, limit orders, stops, take-profit, pending orders, or direct transfers;
+- canonical cash/cost basis uses integer cents;
+- positions use aggregate average cost rather than exposed tax lots;
+- rejected trades do not mutate portfolio state;
+- per-player in-memory transactions serialize concurrent mutations;
+- successful trades do **not** feed market pressure yet. Accounting correctness and market-impact tuning remain separate tasks.
 
 ### Persistence boundary
 
-Do **not** add the database yet. Accounts, portfolio state, trades, and persistence are intentionally deferred until the first in-memory Buy/Sell vertical slice proves the data model.
+The current `PortfolioStore` is intentionally in memory and resets with the server. It exists behind a store interface so persistence can be replaced later without rewriting trading rules.
 
-When persistence is introduced, keep it behind explicit store/repository interfaces so domain logic is not coupled directly to a database library.
+Do **not** add a database, ORM, migrations, or authentication casually. The next playable slice should exercise this API from the client first. Plan real persistence/account identity as its own subsystem once the client/trading data needs are concrete.
 
 ### Technology direction
 
@@ -168,8 +192,11 @@ Do not add a database, ORM, UI framework, mobile wrapper, deployment platform, o
 - `docs/superpowers/specs/2026-08-26-market-era-design.md` — approved product vision, MVP boundary, and future goals.
 - `docs/ui-reference-research.md` — UI references and anti-slop research.
 - `docs/mockups/2026-08-27-current-ui-direction.md` — latest visual hierarchy and progressive-disclosure checkpoint.
-- `docs/superpowers/plans/2026-08-26-market-simulation-vertical-slice.md` — original first implementation plan; read the amendments above before following it literally.
+- `docs/superpowers/specs/2026-08-27-first-trading-slice-design.md` — approved first portfolio/trading slice rules and boundaries.
+- `docs/superpowers/plans/2026-08-27-first-trading-slice.md` — implementation plan for the first server-owned trading slice.
+- `docs/superpowers/plans/2026-08-26-market-simulation-vertical-slice.md` — historical first market-engine implementation plan; read amendments above before following literally.
 - `packages/shared/src/market.ts` — market contracts.
+- `packages/shared/src/trading.ts` — trade intent, fill, portfolio snapshot, and trading-error contracts.
 - `packages/sim/src/rng.ts` — deterministic seeded random source.
 - `packages/sim/src/fixtures.ts` — six small fictional seed assets for tests/demo.
 - `packages/sim/src/demand.ts` — simulated pressure plus capped player influence.
@@ -179,10 +206,13 @@ Do not add a database, ORM, UI framework, mobile wrapper, deployment platform, o
 - `packages/sim/src/market.ts` — advances a market and creates snapshots.
 - `apps/server/src/marketRuntime.ts` — authoritative in-memory market owner, scheduler, and subscriber boundary.
 - `apps/server/src/marketRoutes.ts` — HTTP/WebSocket market transport.
-- `apps/server/src/app.ts` — Fastify app/plugin composition.
-- `apps/server/src/server.ts` — couples listener lifecycle to runtime lifecycle.
+- `apps/server/src/portfolioStore.ts` — transactional portfolio-store interface and in-memory implementation.
+- `apps/server/src/tradingService.ts` — trade validation, accounting, fills, and portfolio derivation.
+- `apps/server/src/tradingRoutes.ts` — portfolio/trade HTTP transport and stable 4xx error mapping.
+- `apps/server/src/app.ts` — Fastify app/plugin/service composition.
+- `apps/server/src/server.ts` — couples listener lifecycle to runtime lifecycle and owns default trading composition.
 - `apps/server/src/index.ts` — executable server entrypoint.
-- `tests/*.test.mjs` — deterministic behavior/regression/server tests.
+- `tests/*.test.mjs` — deterministic behavior/regression/server/trading tests.
 - `tools/demo.mjs` — console demonstration only, not gameplay.
 
 Update this map when a new important directory would otherwise be ambiguous.
@@ -270,11 +300,13 @@ If this snapshot and git disagree, trust git/test evidence and repair the snapsh
 
 **Canonical merge target:** `main`
 
-**Active implementation branch:** `feat/authoritative-market-runtime`
+**Authoritative server merge on `main`:** `1f0b7d4e634a80ba4a110ce5f3167f088216f73a` (PR #1)
 
-**Last verified implementation commit before handoff docs:** `3985dd21da8395e72bf08d7c008882eccaa5217e`
+**Active implementation branch:** `feat/first-trading-slice`
 
-**Status:** The pure market engine now has a tested authoritative realtime server boundary. The branch is not yet merged into `main`.
+**Last freshly verified implementation commit before handoff docs:** `fa3a782eab6cb911265d25f326a0139a23115e06`
+
+**Status:** The pure market engine and realtime market server are on `main`. The first server-owned in-memory portfolio/trading slice is implemented on the active branch and is pending final branch review/merge.
 
 **What works:**
 - six fictional assets: three stocks and three crypto coins;
@@ -284,28 +316,40 @@ If this snapshot and git disagree, trust git/test evidence and repair the snapsh
 - asset/sector/global events with decay;
 - ranked beginner-readable movement reasons;
 - elapsed-time-aware price movement and momentum;
-- authoritative in-memory runtime with explicit clock/scheduler boundaries;
+- authoritative market runtime with explicit clock/scheduler boundaries;
 - runtime start/stop lifecycle and subscriber snapshots;
-- Fastify HTTP snapshot endpoint;
+- Fastify HTTP market snapshot endpoint;
 - WebSocket current-snapshot + future-update stream;
+- server-owned in-memory demo portfolio starting at $10,000;
+- whole-unit immediate Buy/Sell at authoritative current price;
+- integer-cent cash and cost-basis accounting;
+- no short selling, no fees, no advanced orders;
+- aggregate average-cost positions and live market valuation;
+- transactional per-player in-memory portfolio mutation;
+- stable HTTP 4xx responses for invalid trade, missing asset, insufficient cash, and insufficient holdings;
+- rejected trades leave portfolio state unchanged;
 - runnable server entrypoint and `npm run start:server` command;
-- GitHub Actions verification for branches/PRs;
+- GitHub Actions verification;
 - console demo.
 
-**Fresh verification evidence for implementation commit `3985dd21...`:**
-- GitHub Actions CI run `33073433830`: PASS.
-- Node suite: **18 tests passed, 0 failed**.
-- TypeScript typecheck: PASS.
-- HTTP, WebSocket, runtime scheduling, lifecycle, deterministic replay, timing, and movement regressions all pass in that run.
+**Fresh verification evidence for implementation commit `fa3a782e...`:**
+- GitHub Actions run `33075336631` executed `npm test` successfully.
+- Node suite: **30 tests passed, 0 failed**.
+- `npm run typecheck`: PASS.
+- The suite covers market simulation/replay/timing, server lifecycle, HTTP/WebSocket market transport, portfolio/trading accounting, concurrent portfolio transactions, trading HTTP routes/errors, live valuation, and the regression that a failed execution clock cannot mutate the portfolio.
 
 **Known limitations / intentional omissions:**
-- no accounts, portfolio, Buy/Sell ledger, persistence, alerts, Era lifecycle, or leaderboards yet;
-- no database or auth yet by design;
+- portfolio state is in memory and resets on server restart;
+- one configured demo player only; no real authentication/accounts yet;
+- no database or ORM yet by design;
+- no trade-history persistence or realized P/L reporting yet;
+- no fees/spreads, fractional units, shorts, margin, leverage, or advanced/pending orders;
+- successful player trades do not feed market pressure yet;
 - no production web client yet;
-- market pressure is not yet connected to player trade intent;
+- no alerts, Era lifecycle, leaderboards, or company-control systems yet;
 - server is a single-process authoritative foundation, not production horizontal scaling infrastructure;
 - simulation constants are an initial game-tuning baseline, not final economy balance.
 
-**Exact next engineering task after merge/review:** build the smallest early-game client/trading vertical slice. Start with shared trade/portfolio contracts and an in-memory server-owned portfolio/trade boundary, then connect a minimal React/Vite client to authoritative snapshots. Do not add persistence until the in-memory data model is proven.
+**Exact next engineering task after trading-slice merge:** build the smallest Stage-1 React/Vite client against the existing authoritative API. It should contain a minimal market/home shell, Nova Motors asset detail, a live chart from market snapshots, one clear Buy/Sell flow, cash/holdings, and one plain-language movement explanation. Do not add later-stage panels or advanced trading controls.
 
-**Exact next design task:** implement the simplified Stage-1 version described in `docs/mockups/2026-08-27-current-ui-direction.md`: minimal home/market shell + Nova Motors detail + live chart + one clear Buy/Sell path + cash/holdings + one plain-language explanation. Treat the dense command-center mockup as midgame, not onboarding.
+**Exact next design constraint:** treat the dense command-center prototype as midgame. The first-session client must implement the progressive-disclosure rules in `docs/mockups/2026-08-27-current-ui-direction.md`; do not reintroduce extra currencies or generic dashboard clutter.
