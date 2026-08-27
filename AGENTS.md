@@ -43,7 +43,7 @@ Existing code is evidence, not automatically the correct product decision.
 - The authoritative runtime/server boundary merged through PR #1.
 - The first in-memory portfolio/trading slice merged through PR #2 at `65f8aba9a4182e3f5c2b9e49a475b2e5577ad39f`.
 - The Stage-1 React/Vite client merged through PR #3 at `4b5b67b5ef0bb6d8e105e152b20e931dea8db46c`.
-- Stage 1.1 is a bounded first-session polish slice, not a new subsystem.
+- Stage 1.1 first-session polish merged through PR #4 at `59c6f7dbbf4a298d3374159d3493375de08a3603`.
 - Forecast/prediction ideas are not part of the current implementation. Do not add currency-staking or wagering mechanics.
 
 ## 4. Non-negotiable product rules
@@ -296,15 +296,15 @@ If this snapshot and git disagree, trust git/test evidence and repair the snapsh
 
 **Canonical merge target:** `main`
 
-**Current `main`:** `4b5b67b5ef0bb6d8e105e152b20e931dea8db46c` (PR #3, Stage-1 first-playable web client)
+**Current `main` implementation merge:** `59c6f7dbbf4a298d3374159d3493375de08a3603` (PR #4, Stage 1.1 first-session polish)
 
-**Active branch:** `feat/stage1-1-polish`
+**Active implementation branch:** none. Start future feature work from current `main` on a fresh branch.
 
-**Last behavior-changing commit:** `041081852b5c621f88da6c7f685cf3b9018ab9a5`
+**Last behavior-changing implementation commit:** `041081852b5c621f88da6c7f685cf3b9018ab9a5` (contained in PR #4 / the merge above).
 
-**Fresh verification:** GitHub Actions run `33097738997` on `041081...` completed successfully. **43 tests passed, 0 failed**. Vite production build: PASS. `npm run typecheck`: PASS for Node/shared and browser TypeScript.
+**Fresh post-merge verification:** GitHub Actions run `33114133521` on merge commit `59c6f7db...` completed successfully. **43 tests passed, 0 failed**. Vite production build: PASS. `npm run typecheck`: PASS for Node/shared and browser TypeScript.
 
-**Stage 1.1 behavior:**
+**Stage 1.1 behavior now on `main`:**
 
 - hides the empty Position card until the selected asset is owned;
 - shows a compact successful-trade receipt sourced from the authoritative `TradeFill`;
@@ -326,8 +326,10 @@ If this snapshot and git disagree, trust git/test evidence and repair the snapsh
 - no Era lifecycle, leaderboards/social, or company-control systems;
 - current visual treatment is a first-playable foundation, not a locked final theme.
 
-**Integration status:** Stage 1.1 implementation and push-CI are green. PR #4 is open. Review caught and repaired an over-aggressive `AGENTS.md` compaction that had weakened the mandatory UI/handoff guardrails. Require current-head push CI and fresh PR-triggered CI before merge.
+**Integration status:** Stage 1.1 is merged through PR #4 and post-merge `main` CI is green. There is no unfinished implementation branch that must be preserved for the next feature.
 
-**Exact next product task after Stage 1.1 merge:** manually exercise the first playable as a user journey on a real screen and use observed friction to choose the next narrow engineering slice. Do not immediately add another major subsystem just because it exists on the roadmap.
+**Exact next product task:** manually exercise the first playable as a user journey on a real screen and use observed friction to choose the next narrow engineering slice. Do not immediately add another major subsystem just because it exists on the roadmap.
+
+**Exact next collaboration mode:** when Codex is used for implementation, treat this repository handoff plus explicit design decisions from the conversation as the source of truth. Keep implementation work on focused branches; use ChatGPT for product/design decisions, architecture review, scope control, and review of Codex results before merge.
 
 **Exact design constraint:** keep the market core credible and the surrounding experience game-like. Preserve progressive disclosure, one-currency discipline, and first-session focus. Do not reintroduce extra currencies, a primary Shop, fake chart history, or generic dashboard clutter.
