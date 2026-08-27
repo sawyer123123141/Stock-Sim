@@ -1,5 +1,7 @@
 import { AssetRail } from "./components/AssetRail";
 import { MarketHeader } from "./components/MarketHeader";
+import { MovementStory } from "./components/MovementStory";
+import { NextObjective } from "./components/NextObjective";
 import { PositionCard } from "./components/PositionCard";
 import { PriceChart } from "./components/PriceChart";
 import { TradeTicket } from "./components/TradeTicket";
@@ -98,6 +100,11 @@ export function App() {
           />
         </aside>
       </div>
+
+      <section className="insight-strip" aria-label="Market guidance">
+        <MovementStory asset={asset} />
+        <NextObjective positions={session.portfolio.positions} />
+      </section>
     </main>
   );
 }
