@@ -31,9 +31,10 @@ test("stage 1 web client has a Vite mount boundary and root scripts", async () =
 });
 
 test("browser transport sends intent only and session state follows authoritative snapshots", async () => {
-  const [api, session] = await Promise.all([
+  const [api, session, snapshotState] = await Promise.all([
     text("apps/web/src/api.ts"),
-    text("apps/web/src/useMarketSession.ts")
+    text("apps/web/src/useMarketSession.ts"),
+    text("apps/web/src/marketSnapshotState.ts")
   ]);
 
   assert.match(api, /fetchMarket/);
@@ -51,8 +52,8 @@ test("browser transport sends intent only and session state follows authoritativ
   assert.match(session, /priceHistory/);
   assert.match(session, /tradePending/);
   assert.match(session, /tradeError/);
-  assert.match(session, /120/);
-  assert.match(session, /generatedAt/);
+  assert.match(snapshotState, /120/);
+  assert.match(snapshotState, /generatedAt/);
   assert.match(session, /nova/);
 });
 
