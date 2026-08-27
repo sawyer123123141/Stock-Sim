@@ -5,9 +5,11 @@ import type {
   PortfolioPositionSnapshot,
   PortfolioSnapshot,
   TradeExecutionResponse,
+  TradeFill,
   TradeSide
 } from "../../../packages/shared/src/index";
 import { fetchMarket, fetchPortfolio, openMarketSocket, submitTrade } from "./api";
+import { rememberOwnedAssetIds } from "./firstSessionProgress";
 import { projectPortfolioToMarket } from "./portfolioProjection";
 
 export interface PriceSample {
@@ -28,10 +30,12 @@ export interface MarketSession {
   selectedPosition: PortfolioPositionSnapshot | null;
   selectedHistory: PriceSample[];
   priceHistory: PriceHistory;
+  firstSessionOwnedAssetCount: number;
   selectAsset(assetId: string): void;
   trade(side: TradeSide, quantity: number): Promise<TradeExecutionResponse | null>;
   tradePending: boolean;
   tradeError: string | null;
+  lastTrade: TradeFill | null;
   lastTradeId: string | null;
 }
 
@@ -49,9 +53,10 @@ export function useMarketSession(): MarketSession {
   const [connectionNotice, setConnectionNotice] = useState<string | null>(null);
   const [selectedAssetId, setSelectedAssetId] = useState("nova");
   const [priceHistory, setPriceHistory] = useState<PriceHistory>({});
+  const [firstSessionAssetIds, setFirstSessionAssetIds] = useState<string[]>([]);
   const [tradePending, setTradePending] = useState(false);
   const [tradeError, setTradeError] = useState<string | null>(null);
-  const [lastTradeId, setLastTradeId] = useState<string | null>(null);
+  const [lastTrade, setLastTrade] = useState<TradeFill | null>(null);
 
   const applySnapshot = useCallback((snapshot: MarketSnapshot) => {
     setMarket(snapshot);
@@ -94,6 +99,7 @@ export function useMarketSession(): MarketSession {
         if (cancelled) return;
         applySnapshot(initialMarket);
         setPortfolio(initialPortfolio);
+        setFirstSessionAssetIds((previous) => rememberOwnedAssetIds(previous, initialPortfolio.positions));
         const preferred = initialMarket.assets.find((asset) => asset.id === "nova")
           ?? initialMarket.assets[0];
         if (preferred) setSelectedAssetId(preferred.id);
@@ -115,6 +121,7 @@ export function useMarketSession(): MarketSession {
   const selectAsset = useCallback((assetId: string) => {
     setSelectedAssetId(assetId);
     setTradeError(null);
+    setLastTrade(null);
   }, []);
 
   const livePortfolio = useMemo(
@@ -142,10 +149,12 @@ export function useMarketSession(): MarketSession {
 
     setTradePending(true);
     setTradeError(null);
+    setLastTrade(null);
     try {
       const result = await submitTrade({ assetId: selectedAssetId, side, quantity });
       setPortfolio(result.portfolio);
-      setLastTradeId(result.fill.id);
+      setFirstSessionAssetIds((previous) => rememberOwnedAssetIds(previous, result.portfolio.positions));
+      setLastTrade(result.fill);
       return result;
     } catch (tradeFailure) {
       setTradeError(errorMessage(tradeFailure));
@@ -166,10 +175,12 @@ export function useMarketSession(): MarketSession {
     selectedPosition,
     selectedHistory,
     priceHistory,
+    firstSessionOwnedAssetCount: firstSessionAssetIds.length,
     selectAsset,
     trade,
     tradePending,
     tradeError,
-    lastTradeId
+    lastTrade,
+    lastTradeId: lastTrade?.id ?? null
   };
 }

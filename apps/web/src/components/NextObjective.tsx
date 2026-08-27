@@ -1,15 +1,33 @@
-import type { PortfolioPositionSnapshot } from "../../../../packages/shared/src/index";
-
 export interface NextObjectiveProps {
-  positions: PortfolioPositionSnapshot[];
+  ownedAssetCount: number;
 }
 
-export function NextObjective({ positions }: NextObjectiveProps) {
-  const ownedAssets = positions.filter((position) => position.quantity > 0).length;
-  const firstInvestment = ownedAssets === 0;
-  const title = firstInvestment ? "Make your first investment" : "Own 2 different assets";
-  const current = firstInvestment ? 0 : Math.min(ownedAssets, 2);
-  const target = firstInvestment ? 1 : 2;
+export function NextObjective({ ownedAssetCount }: NextObjectiveProps) {
+  const ownedAssets = Math.max(0, ownedAssetCount);
+  const firstStepsComplete = ownedAssets >= 2;
+
+  let title: string;
+  let current: number;
+  let target: number;
+  let detail: string;
+
+  if (ownedAssets === 0) {
+    title = "Make your first investment";
+    current = 0;
+    target = 1;
+    detail = "Buy at least 1 unit of any asset.";
+  } else if (!firstStepsComplete) {
+    title = "Own 2 different assets";
+    current = ownedAssets;
+    target = 2;
+    detail = "Try a second company or digital asset.";
+  } else {
+    title = "First steps complete";
+    current = 1;
+    target = 1;
+    detail = "You have opened positions in two different assets.";
+  }
+
   const progress = Math.min((current / target) * 100, 100);
 
   return (
@@ -19,6 +37,7 @@ export function NextObjective({ positions }: NextObjectiveProps) {
         <h2 id="objective-title">{title}</h2>
         <p>{current} / {target}</p>
       </div>
+      <p className="objective-detail">{detail}</p>
       <div
         className="objective-progress"
         role="progressbar"

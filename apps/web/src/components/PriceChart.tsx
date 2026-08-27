@@ -12,20 +12,8 @@ const HEIGHT = 360;
 const PAD_X = 28;
 const PAD_Y = 32;
 
-function chartPoints(asset: AssetSnapshot, samples: PriceSample[]): PriceSample[] {
-  if (samples.length >= 2) return samples;
-  if (samples.length === 1) {
-    return [samples[0], { atMs: samples[0].atMs + 1, price: asset.price }];
-  }
-  return [
-    { atMs: 0, price: asset.price },
-    { atMs: 1, price: asset.price }
-  ];
-}
-
 export function PriceChart({ asset, samples }: PriceChartProps) {
-  const points = chartPoints(asset, samples);
-  const prices = points.map((point) => point.price);
+  const prices = samples.length > 0 ? samples.map((point) => point.price) : [asset.price];
   const rawMin = Math.min(...prices);
   const rawMax = Math.max(...prices);
   const rawRange = rawMax - rawMin;
@@ -35,13 +23,21 @@ export function PriceChart({ asset, samples }: PriceChartProps) {
   const range = Math.max(max - min, 0.01);
   const drawableWidth = WIDTH - PAD_X * 2;
   const drawableHeight = HEIGHT - PAD_Y * 2;
+  const hasLine = samples.length >= 2;
 
-  const path = points.map((point, index) => {
-    const x = PAD_X + (index / Math.max(points.length - 1, 1)) * drawableWidth;
-    const y = PAD_Y + ((max - point.price) / range) * drawableHeight;
-    return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
-  }).join(" ");
+  const path = hasLine
+    ? samples.map((point, index) => {
+      const x = PAD_X + (index / Math.max(samples.length - 1, 1)) * drawableWidth;
+      const y = PAD_Y + ((max - point.price) / range) * drawableHeight;
+      return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+    }).join(" ")
+    : "";
 
+  const latest = samples[samples.length - 1];
+  const latestX = hasLine ? WIDTH - PAD_X : WIDTH / 2;
+  const latestY = latest
+    ? PAD_Y + ((max - latest.price) / range) * drawableHeight
+    : HEIGHT / 2;
   const positive = asset.lastTickChangePct >= 0;
   const label = `${asset.name} live session chart. Current price ${formatMoney(asset.price)}.`;
 
@@ -49,7 +45,7 @@ export function PriceChart({ asset, samples }: PriceChartProps) {
     <figure className={`price-chart ${positive ? "is-positive" : "is-negative"}`}>
       <div className="chart-meta" aria-hidden="true">
         <span>LIVE SESSION</span>
-        <span>{samples.length <= 1 ? "Collecting live history…" : `${samples.length} updates`}</span>
+        <span>{samples.length <= 1 ? "Waiting for the next live update…" : `${samples.length} updates`}</span>
       </div>
       <svg
         className="chart-svg"
@@ -71,14 +67,18 @@ export function PriceChart({ asset, samples }: PriceChartProps) {
             />
           );
         })}
-        <path className="chart-line" d={path} fill="none" vectorEffect="non-scaling-stroke" />
-        <circle
-          className="chart-dot"
-          cx={WIDTH - PAD_X}
-          cy={PAD_Y + ((max - points[points.length - 1].price) / range) * drawableHeight}
-          r="5"
-          vectorEffect="non-scaling-stroke"
-        />
+        {hasLine && (
+          <path className="chart-line" d={path} fill="none" vectorEffect="non-scaling-stroke" />
+        )}
+        {latest && (
+          <circle
+            className="chart-dot"
+            cx={latestX}
+            cy={latestY}
+            r="5"
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
       </svg>
       <div className="chart-range" aria-hidden="true">
         <span>{formatMoney(max)}</span>

@@ -12,6 +12,8 @@ The server owns market time, prices, cash, holdings, and trade execution. The cu
 
 The first playable client intentionally stays narrow: five visible assets, one selected asset, a live-session chart built only from authoritative snapshots received during the current browser session, one Buy/Sell path, a compact position panel, one plain-language movement story, and one next objective. The browser projects the server-owned holdings over the latest authoritative WebSocket prices so displayed portfolio value and unrealized P/L stay current without letting the client invent canonical balances or fills.
 
+Stage 1.1 sharpens the first few minutes without adding another system: empty accounts no longer waste space on a blank position card, successful trades show a compact receipt using the authoritative server fill, beginner objectives advance through a tiny first-session sequence without regressing after a sale, the chart waits for a real second snapshot instead of fabricating a line, and live quote updates get a restrained visual pulse. The objective memory is browser-session guidance only, not persistent account state.
+
 A database, authentication, advanced orders, persistent historical chart data, player trade impact on prices, and broader progression/social systems are still deliberately deferred. The project separates each slice so the first playable does not become an enormous pile of half-understood features.
 
 ## Architecture
@@ -57,9 +59,11 @@ The first client slice deliberately includes:
 - current price and latest simulation-tick movement;
 - a real session chart using received authoritative prices only;
 - whole-unit Buy/Sell trading;
+- compact authoritative fill feedback after a successful trade;
 - cash available, owned units, average cost, market value, and unrealized P/L;
+- position details only after the selected asset is actually owned;
 - one highest-ranked plain-language movement reason;
-- one beginner objective at a time;
+- one beginner objective at a time, with first-session accomplishments remembered for the current browser session;
 - responsive layout and reduced-motion support.
 
 It deliberately does **not** include limit orders, stops, margin, leverage, extra currencies, a shop, Top Movers, fake historical candles, or a wall of progression widgets.

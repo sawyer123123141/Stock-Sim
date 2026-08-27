@@ -16,6 +16,7 @@
   "include": [
     "packages/**/*.ts",
     "apps/server/**/*.ts",
-    "apps/web/src/portfolioProjection.ts"
+    "apps/web/src/portfolioProjection.ts",
+    "apps/web/src/firstSessionProgress.ts"
   ]
 }
