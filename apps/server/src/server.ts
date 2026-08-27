@@ -1,21 +1,30 @@
 import type { FastifyInstance, FastifyListenOptions } from "fastify";
 import { buildMarketApp } from "./app.js";
 import { createMarketRuntime, type MarketRuntime } from "./marketRuntime.js";
+import { InMemoryPortfolioStore, type PortfolioStore } from "./portfolioStore.js";
+import { createTradingService, type TradingService } from "./tradingService.js";
 
 export interface MarketServerOptions {
   runtime?: MarketRuntime;
+  store?: PortfolioStore;
+  trading?: TradingService;
+  playerId?: string;
 }
 
 export interface MarketServer {
   app: FastifyInstance;
   runtime: MarketRuntime;
+  trading: TradingService;
   listen(options: FastifyListenOptions): Promise<string>;
   close(): Promise<void>;
 }
 
 export function createMarketServer(options: MarketServerOptions = {}): MarketServer {
   const runtime = options.runtime ?? createMarketRuntime();
-  const app = buildMarketApp({ runtime });
+  const store = options.store ?? new InMemoryPortfolioStore();
+  const trading = options.trading ?? createTradingService({ runtime, store });
+  const playerId = options.playerId ?? "demo-player";
+  const app = buildMarketApp({ runtime, trading, playerId });
   let runtimeStarted = false;
 
   async function listen(listenOptions: FastifyListenOptions): Promise<string> {
@@ -41,5 +50,5 @@ export function createMarketServer(options: MarketServerOptions = {}): MarketSer
     await app.close();
   }
 
-  return { app, runtime, listen, close };
+  return { app, runtime, trading, listen, close };
 }
