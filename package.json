@@ -12,6 +12,9 @@
     "test": "tsc -p tsconfig.json && node --test tests/*.test.mjs",
     "demo": "tsc -p tsconfig.json && node tools/demo.mjs"
   },
+  "dependencies": {
+    "fastify": "^5.12.1"
+  },
   "devDependencies": {
     "typescript": "^5.8.3"
   }
