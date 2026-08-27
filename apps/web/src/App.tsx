@@ -112,7 +112,7 @@ export function App() {
 
       <section className="insight-strip" aria-label="Market guidance">
         <MovementStory asset={asset} />
-        <NextObjective positions={session.portfolio.positions} />
+        <NextObjective ownedAssetCount={session.firstSessionOwnedAssetCount} />
       </section>
     </main>
   );
