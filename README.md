@@ -6,9 +6,9 @@ A player should be able to start with almost no knowledge of stocks, understand 
 
 ## Current status
 
-**First market-simulation prototype implemented on `feat/market-sim-vertical-slice`.**
+The deterministic stock/crypto simulation is implemented, and the first authoritative realtime server slice is implemented on `feat/authoritative-market-runtime` pending merge review.
 
-The first code deliberately focuses on the smallest useful foundation: deterministic stock/crypto movement, events, bounded player pressure, simulated pressure, and plain-language movement explanations. No production UI, accounts, database, or company-management systems have been added yet.
+The server owns market time and state, can advance the deterministic simulation on a schedule, exposes the current fictional-market snapshot over HTTP, and streams authoritative updates over WebSocket. The current work still deliberately excludes accounts, a persistent portfolio/trade ledger, a database, and production UI.
 
 The project intentionally separates the first playable version from the long-term vision so the game does not become an enormous pile of half-understood features.
 
@@ -16,20 +16,27 @@ The project intentionally separates the first playable version from the long-ter
 
 - `packages/shared/` — shared market/domain contracts.
 - `packages/sim/` — pure deterministic simulation engine. No UI, HTTP, database, timers, or hidden global randomness.
-- `apps/server/` — planned authoritative Fastify + WebSocket runtime.
-- `apps/web/` — planned React + Vite client after the first-screen reference/mockup gate is complete.
+- `apps/server/` — authoritative Fastify + WebSocket runtime around the pure simulation.
+- `apps/web/` — planned React + Vite client. Production UI follows the reference/mockup gate and progressive-disclosure rules.
 
-Node 24 LTS is the preferred development line; the pure engine currently supports Node 22.12+ so it remains compatible with modern Vite requirements when the web client is added.
+Node 24 LTS is the preferred development line; the project currently supports Node 22.12+.
 
-## Prototype commands
+## Development commands
 
 ```bash
 npm install
 npm test
+npm run typecheck
 npm run demo
+npm run start:server
 ```
 
-`npm test` compiles the TypeScript engine and runs the deterministic Node test suite. `npm run demo` prints a small fictional market with beginner-readable explanations for recent movement.
+`npm test` compiles the TypeScript project and runs the Node behavior/regression suite. `npm run demo` prints a small fictional market with beginner-readable explanations. `npm run start:server` builds and starts the authoritative server on port `3000` by default; `HOST` and `PORT` can override its listener settings.
+
+Current server endpoints:
+
+- `GET /api/market` — current authoritative fictional-market snapshot.
+- `WS /ws/market` — current snapshot immediately on connection, followed by authoritative market updates.
 
 ## Design documents
 
@@ -51,6 +58,6 @@ npm run demo
 
 ## Scope
 
-The first playable focuses on stocks, crypto, buying/selling, a portfolio, simulated investors, explainable price movement, news/events, guided career goals, basic progression, non-wager market forecast challenges, alerts, a simple leaderboard/social layer, one functioning Market Era, and a polished desktop experience.
+The first playable focuses on fictional stocks and crypto, buying/selling with in-game money, a portfolio, simulated investors, explainable price movement, news/events, guided career goals, basic progression, alerts, a simple leaderboard/social layer, one functioning Market Era, and a polished desktop experience.
 
 Company control, acquisitions, holding companies, deep procedural corporate lifecycles, complex macroeconomics, sophisticated executives, and a complete mobile client are future goals rather than MVP requirements.
