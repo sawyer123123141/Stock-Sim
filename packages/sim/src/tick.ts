@@ -66,7 +66,14 @@ export function tickAsset(asset: AssetState, context: TickContext, rng: RandomSo
   const maxReturn = asset.kind === "stock" ? STOCK_MAX_TICK_RETURN : CRYPTO_MAX_TICK_RETURN;
   const returnFraction = clamp(rawReturn, -maxReturn, maxReturn);
   const nextPrice = round(Math.max(0.000001, asset.price * (1 + returnFraction)), 6);
-  const nextMomentum = clamp(asset.momentum * 0.72 + (returnFraction / maxReturn) * 0.28, -1, 1);
+  const time = scales(asset, context.deltaMs);
+  const momentumRetention = Math.pow(0.72, time.linear);
+  const momentumSignal = returnFraction / maxReturn;
+  const nextMomentum = clamp(
+    asset.momentum * momentumRetention + momentumSignal * (1 - momentumRetention),
+    -1,
+    1
+  );
 
   return {
     returnFraction,

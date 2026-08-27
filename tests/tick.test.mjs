@@ -69,3 +69,16 @@ test('a quiet stock does not explode from static fundamentals over one real day'
 
   assert.ok(stock.price < market.assets.find((asset) => asset.id === 'nova').price * 1.25);
 });
+
+test('zero elapsed time does not change price or momentum', () => {
+  const stock = structuredClone(market.assets.find((asset) => asset.id === 'nova'));
+  const result = tickAsset(
+    stock,
+    { demand: { simulated: 1, player: 10 }, eventEffect: 1, deltaMs: 0 },
+    createSeededRng(88)
+  );
+
+  assert.equal(result.asset.price, stock.price);
+  assert.equal(result.asset.momentum, stock.momentum);
+  assert.equal(result.asset.lastTickChangePct, 0);
+});
