@@ -1,5 +1,5 @@
 import type { AssetSnapshot } from "../../../../packages/shared/src/index";
-import { formatMoney, formatSignedPercent } from "../format";
+import { formatMoney, formatSignedPercent, marketChangeTone } from "../format";
 
 export interface AssetRailProps {
   assets: AssetSnapshot[];
@@ -17,7 +17,7 @@ export function AssetRail({ assets, selectedAssetId, onSelect }: AssetRailProps)
       <div className="asset-list">
         {assets.slice(0, 5).map((asset) => {
           const selected = asset.id === selectedAssetId;
-          const positive = asset.lastTickChangePct >= 0;
+          const marketTone = marketChangeTone(asset.lastTickChangePct);
           return (
             <button
               key={asset.id}
@@ -30,7 +30,7 @@ export function AssetRail({ assets, selectedAssetId, onSelect }: AssetRailProps)
               <span className="asset-button-copy">
                 <span className="asset-symbol-line">
                   <strong>{asset.symbol}</strong>
-                  <span className={positive ? "market-up" : "market-down"}>
+                  <span className={`market-${marketTone}`}>
                     {formatSignedPercent(asset.lastTickChangePct)}
                   </span>
                 </span>

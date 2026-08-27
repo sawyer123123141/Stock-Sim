@@ -396,6 +396,7 @@ input:focus-visible {
 
 .market-up { color: var(--up); }
 .market-down { color: var(--down); }
+.market-neutral { color: var(--muted); }
 
 .timeframe-row {
   display: flex;
@@ -466,14 +467,19 @@ input:focus-visible {
   stroke-linejoin: round;
 }
 
-.price-chart.is-positive .chart-line,
-.price-chart.is-positive .chart-dot {
+.price-chart.is-up .chart-line,
+.price-chart.is-up .chart-dot {
   stroke: var(--up);
 }
 
-.price-chart.is-negative .chart-line,
-.price-chart.is-negative .chart-dot {
+.price-chart.is-down .chart-line,
+.price-chart.is-down .chart-dot {
   stroke: var(--down);
+}
+
+.price-chart.is-neutral .chart-line,
+.price-chart.is-neutral .chart-dot {
+  stroke: var(--muted);
 }
 
 .chart-dot {

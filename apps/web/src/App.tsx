@@ -5,7 +5,7 @@ import { NextObjective } from "./components/NextObjective";
 import { PositionCard } from "./components/PositionCard";
 import { PriceChart } from "./components/PriceChart";
 import { TradeTicket } from "./components/TradeTicket";
-import { formatMoney, formatSignedPercent } from "./format";
+import { formatMoney, formatSignedPercent, marketChangeTone } from "./format";
 import { useMarketSession } from "./useMarketSession";
 
 export function App() {
@@ -38,7 +38,7 @@ export function App() {
 
   const asset = session.selectedAsset;
   const position = session.selectedPosition;
-  const positive = asset.lastTickChangePct >= 0;
+  const marketTone = marketChangeTone(asset.lastTickChangePct);
   const lastFill = session.lastTrade?.assetId === asset.id ? session.lastTrade : null;
 
   return (
@@ -76,7 +76,7 @@ export function App() {
               >
                 {formatMoney(asset.price)}
               </strong>
-              <span className={positive ? "market-up" : "market-down"}>
+              <span className={`market-${marketTone}`}>
                 {formatSignedPercent(asset.lastTickChangePct)} <small>latest move</small>
               </span>
             </div>
