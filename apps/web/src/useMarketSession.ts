@@ -5,6 +5,7 @@ import type {
   PortfolioPositionSnapshot,
   PortfolioSnapshot,
   TradeExecutionResponse,
+  TradeFill,
   TradeSide
 } from "../../../packages/shared/src/index";
 import { fetchMarket, fetchPortfolio, openMarketSocket, submitTrade } from "./api";
@@ -32,6 +33,7 @@ export interface MarketSession {
   trade(side: TradeSide, quantity: number): Promise<TradeExecutionResponse | null>;
   tradePending: boolean;
   tradeError: string | null;
+  lastTrade: TradeFill | null;
   lastTradeId: string | null;
 }
 
@@ -51,7 +53,7 @@ export function useMarketSession(): MarketSession {
   const [priceHistory, setPriceHistory] = useState<PriceHistory>({});
   const [tradePending, setTradePending] = useState(false);
   const [tradeError, setTradeError] = useState<string | null>(null);
-  const [lastTradeId, setLastTradeId] = useState<string | null>(null);
+  const [lastTrade, setLastTrade] = useState<TradeFill | null>(null);
 
   const applySnapshot = useCallback((snapshot: MarketSnapshot) => {
     setMarket(snapshot);
@@ -115,6 +117,7 @@ export function useMarketSession(): MarketSession {
   const selectAsset = useCallback((assetId: string) => {
     setSelectedAssetId(assetId);
     setTradeError(null);
+    setLastTrade(null);
   }, []);
 
   const livePortfolio = useMemo(
@@ -142,10 +145,11 @@ export function useMarketSession(): MarketSession {
 
     setTradePending(true);
     setTradeError(null);
+    setLastTrade(null);
     try {
       const result = await submitTrade({ assetId: selectedAssetId, side, quantity });
       setPortfolio(result.portfolio);
-      setLastTradeId(result.fill.id);
+      setLastTrade(result.fill);
       return result;
     } catch (tradeFailure) {
       setTradeError(errorMessage(tradeFailure));
@@ -170,6 +174,7 @@ export function useMarketSession(): MarketSession {
     trade,
     tradePending,
     tradeError,
-    lastTradeId
+    lastTrade,
+    lastTradeId: lastTrade?.id ?? null
   };
 }
