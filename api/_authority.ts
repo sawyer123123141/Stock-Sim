@@ -6,7 +6,10 @@ let authority: ReturnType<typeof createPersistentGameAuthority> | undefined;
 export function hostedAuthority(): ReturnType<typeof createPersistentGameAuthority> {
   if (!authority) {
     authority = createPersistentGameAuthority(
-      createPostgresGameStore(process.env.DATABASE_URL ?? "", () => createInitialGameState(Date.now()))
+      createPostgresGameStore(
+        process.env.POSTGRES_URL ?? process.env.DATABASE_URL ?? "",
+        () => createInitialGameState(Date.now())
+      )
     );
   }
   return authority;
