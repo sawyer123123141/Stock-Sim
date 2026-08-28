@@ -1,5 +1,6 @@
 import { AssetRail } from "./components/AssetRail";
 import { MarketHeader } from "./components/MarketHeader";
+import { MarketPulse } from "./components/MarketPulse";
 import { MovementStory } from "./components/MovementStory";
 import { NewsStory } from "./components/NewsStory";
 import { NextObjective } from "./components/NextObjective";
@@ -90,6 +91,8 @@ export function App() {
               </span>
             </div>
           </div>
+
+          <MarketPulse marketRead={asset.marketRead} />
 
           <div className="timeframe-row" aria-label="Chart timeframe">
             <span className="timeframe-button is-active">LIVE</span>

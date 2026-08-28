@@ -4,11 +4,13 @@ import {
   calculateSimulatedInvestorPressure,
   combinedEventEffect,
   FIRST_EVENT_DELAY_MS,
+  calculateMarketRead,
   createMarketEvent,
   createSeedMarket,
   createSeededRng,
   tickMarket,
   toMarketSnapshot,
+  type MarketReadByAsset,
   type PressureByAsset
 } from "../../../packages/sim/src/index.js";
 import { createPlayerPressureBook } from "./playerPressure.js";
@@ -69,7 +71,20 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
   const playerPressure = createPlayerPressureBook();
 
   function snapshot(): MarketSnapshot {
-    return toMarketSnapshot(state, lastAdvancedAtMs);
+    return toMarketSnapshot(state, lastAdvancedAtMs, currentMarketReads(lastAdvancedAtMs));
+  }
+
+  function currentMarketReads(nowMs: number): MarketReadByAsset {
+    return Object.fromEntries(state.assets.map((asset) => [
+      asset.id,
+      calculateMarketRead(asset, {
+        simulated: calculateSimulatedInvestorPressure(
+          asset,
+          combinedEventEffect(state.activeEvents, asset, nowMs)
+        ),
+        player: playerPressure.pressureForAsset(asset.id, nowMs)
+      })
+    ]));
   }
 
   function advanceTo(
