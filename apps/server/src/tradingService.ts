@@ -31,6 +31,7 @@ interface ExecutedTradeState {
   unitPriceCents: number;
   totalCents: number;
   executedAt: string;
+  executedAtMs: number;
   portfolio: PortfolioState;
 }
 
@@ -178,6 +179,7 @@ export function createTradingService(options: TradingServiceOptions): TradingSer
         unitPriceCents,
         totalCents,
         executedAt,
+        executedAtMs,
         portfolio: clonePortfolio(portfolio)
       };
     });
@@ -192,6 +194,13 @@ export function createTradingService(options: TradingServiceOptions): TradingSer
       total: executed.totalCents / 100,
       executedAt: executed.executedAt
     };
+
+    options.runtime.recordPlayerTrade(
+      executed.asset.id,
+      intent.side,
+      intent.quantity,
+      executed.executedAtMs
+    );
 
     return {
       fill,

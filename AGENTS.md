@@ -164,7 +164,7 @@ For the first playable:
 - rejected trades do not mutate portfolio state;
 - per-player in-memory transactions serialize concurrent mutations;
 - queued trades capture authoritative price/time when the transaction actually executes;
-- successful trades do **not** feed market pressure yet.
+- successful trades add only small, bounded, short-lived server-owned market pressure; deterministic simulated investors remain dominant.
 
 ### Stage-1 client authority boundary
 
@@ -322,7 +322,7 @@ If this snapshot and git disagree, trust git/test evidence and repair the snapsh
 - first-session objective memory is also browser-session-only;
 - no persistent trade history/realized P/L;
 - no fees/spreads, fractions, shorts, margin, leverage, advanced orders, or alerts;
-- player trades do not yet feed market pressure;
+- player trade pressure is bounded, decays quickly, and cannot replace simulated market activity;
 - no Era lifecycle, leaderboards/social, or company-control systems;
 - current visual treatment is a first-playable foundation, not a locked final theme.
 
