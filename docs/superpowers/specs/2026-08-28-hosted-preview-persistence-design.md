@@ -1,7 +1,7 @@
 # Hosted preview persistence design
 
-**Date:** 2026-08-28  
-**Status:** Approved implementation design  
+**Date:** 2026-08-28
+**Status:** Approved implementation design
 **Scope:** Hosted Stage 1.1 preview only; no gameplay or UI additions.
 
 ## Goal
