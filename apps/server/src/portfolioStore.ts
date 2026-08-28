@@ -36,10 +36,14 @@ export class InMemoryPortfolioStore implements PortfolioStore {
   private readonly portfolios = new Map<string, PortfolioState>();
   private readonly queues = new Map<string, Promise<void>>();
 
-  constructor(private readonly startingCashCents = DEFAULT_STARTING_CASH_CENTS) {
+  constructor(
+    private readonly startingCashCents = DEFAULT_STARTING_CASH_CENTS,
+    initialPortfolio?: PortfolioState
+  ) {
     if (!Number.isSafeInteger(startingCashCents) || startingCashCents < 0) {
       throw new RangeError("Starting cash must be a non-negative safe integer number of cents.");
     }
+    if (initialPortfolio) this.portfolios.set(initialPortfolio.playerId, clonePortfolio(initialPortfolio));
   }
 
   private getOrCreate(playerId: string): PortfolioState {

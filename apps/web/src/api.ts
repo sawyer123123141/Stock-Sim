@@ -58,58 +58,32 @@ export function submitTrade(intent: TradeIntent): Promise<TradeExecutionResponse
   });
 }
 
-export interface MarketSocket {
+export interface MarketSubscription {
   close(): void;
 }
 
-export function openMarketSocket(
+export function openMarketUpdates(
   onSnapshot: (snapshot: MarketSnapshot) => void,
   onError?: (message: string) => void
-): MarketSocket {
+): MarketSubscription {
   let stopped = false;
-  let socket: WebSocket | undefined;
-  let retryTimer: number | undefined;
-  let retryCount = 0;
-
-  const connect = () => {
-    if (stopped) return;
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    socket = new WebSocket(`${protocol}//${window.location.host}/ws/market`);
-
-    socket.addEventListener("open", () => {
-      retryCount = 0;
-    });
-
-    socket.addEventListener("message", (event) => {
-      try {
-        const snapshot = JSON.parse(String(event.data)) as MarketSnapshot;
-        if (snapshot && Array.isArray(snapshot.assets) && typeof snapshot.generatedAt === "string") {
-          onSnapshot(snapshot);
-        }
-      } catch {
-        onError?.("Live market sent an unreadable update.");
-      }
-    });
-
-    socket.addEventListener("close", () => {
-      if (stopped) return;
-      const delayMs = Math.min(750 * (2 ** retryCount), 5_000);
-      retryCount = Math.min(retryCount + 1, 4);
-      retryTimer = window.setTimeout(connect, delayMs);
-    });
-
-    socket.addEventListener("error", () => {
-      onError?.("Live market connection was interrupted. Reconnecting…");
+  const poll = () => {
+    void fetchMarket().then((snapshot) => {
+      if (!stopped) onSnapshot(snapshot);
+    }).catch(() => {
+      if (!stopped) onError?.("Live market update was interrupted. Retrying…");
     });
   };
-
-  connect();
+  poll();
+  const interval = window.setInterval(poll, 5_000);
 
   return {
     close() {
       stopped = true;
-      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
-      socket?.close();
+      window.clearInterval(interval);
     }
   };
 }
+
+// Compatibility name for existing local callers while delivery is polling-based.
+export const openMarketSocket = openMarketUpdates;

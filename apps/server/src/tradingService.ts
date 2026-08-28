@@ -24,6 +24,7 @@ export interface TradingServiceOptions {
   runtime: MarketRuntime;
   store: PortfolioStore;
   now?: () => number;
+  nextTradeId?: number;
 }
 
 interface ExecutedTradeState {
@@ -110,7 +111,7 @@ function derivePortfolio(portfolio: PortfolioState, runtime: MarketRuntime): Por
 
 export function createTradingService(options: TradingServiceOptions): TradingService {
   const now = options.now ?? (() => Date.now());
-  let nextTradeId = 1;
+  let nextTradeId = options.nextTradeId ?? 1;
 
   async function getPortfolio(playerId: string): Promise<PortfolioSnapshot> {
     const portfolio = await options.store.read(playerId);

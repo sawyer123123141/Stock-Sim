@@ -81,3 +81,20 @@ test("start uses the injected clock and scheduler, and stop cancels future ticks
   runtime.stop();
   assert.equal(cancelled, true);
 });
+
+test("runtime recovery preserves RNG, scheduled events, and player pressure", () => {
+  const initial = createMarketRuntime({
+    initialState: createSeedMarket(),
+    seed: 42,
+    startedAtMs: 0,
+    firstEventDelayMs: 5_000,
+    eventIntervalMs: 10_000
+  });
+
+  initial.advanceTo(5_000);
+  initial.recordPlayerTrade("nova", "buy", 3, 5_000);
+  const recovered = createMarketRuntime({ recoveryState: initial.recoveryState() });
+
+  assert.deepEqual(recovered.advanceTo(15_000), initial.advanceTo(15_000));
+  assert.equal(recovered.playerPressureForAsset("nova", 15_000), initial.playerPressureForAsset("nova", 15_000));
+});
