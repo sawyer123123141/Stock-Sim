@@ -11,14 +11,16 @@ const event = {
   title: 'Nova launch praised',
   summary: 'Early reviews are strong.',
   effect: 0.8,
-  startsAt: 1000,
+  publishedAt: 1000,
+  reactionStartsAt: 1000,
   expiresAt: 2000,
   target: { kind: 'asset', value: 'nova' }
 };
 
-test('targeted event affects only its asset and decays', () => {
-  assert.ok(eventEffectForAsset(event, nova, 1000) > 0.79);
-  assert.equal(eventEffectForAsset(event, luma, 1000), 0);
+test('targeted event affects only its asset and fades after its reaction has built', () => {
+  assert.equal(eventEffectForAsset(event, nova, 1000), 0);
+  assert.ok(eventEffectForAsset(event, nova, 1250) > 0.79);
+  assert.equal(eventEffectForAsset(event, luma, 1250), 0);
   assert.ok(eventEffectForAsset(event, nova, 1500) > 0.39);
   assert.equal(eventEffectForAsset(event, nova, 2000), 0);
 });
