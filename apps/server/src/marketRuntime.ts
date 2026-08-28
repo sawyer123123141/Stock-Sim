@@ -1,6 +1,8 @@
-import type { MarketSnapshot, MarketState } from "../../../packages/shared/src/index.js";
+import type { MarketPressure, MarketSnapshot, MarketState, TradeSide } from "../../../packages/shared/src/index.js";
 import {
   EVENT_CADENCE_MS,
+  calculateSimulatedInvestorPressure,
+  combinedEventEffect,
   FIRST_EVENT_DELAY_MS,
   createMarketEvent,
   createSeedMarket,
@@ -9,6 +11,7 @@ import {
   toMarketSnapshot,
   type PressureByAsset
 } from "../../../packages/sim/src/index.js";
+import { createPlayerPressureBook } from "./playerPressure.js";
 
 export type MarketSnapshotListener = (snapshot: MarketSnapshot) => void;
 export type MarketClock = () => number;
@@ -31,6 +34,9 @@ export interface MarketRuntimeOptions {
 export interface MarketRuntime {
   snapshot(): MarketSnapshot;
   advanceTo(nowMs: number, pressureByAsset?: PressureByAsset): MarketSnapshot;
+  recordPlayerTrade(assetId: string, side: TradeSide, quantity: number, executedAtMs: number): void;
+  playerPressureForAsset(assetId: string, nowMs: number): number;
+  simulatedPressureForAsset(assetId: string, nowMs: number): number;
   subscribe(listener: MarketSnapshotListener): () => void;
   start(): void;
   stop(): void;
@@ -60,6 +66,7 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
   let eventCount = 0;
   let cancelScheduledTick: (() => void) | undefined;
   const listeners = new Set<MarketSnapshotListener>();
+  const playerPressure = createPlayerPressureBook();
 
   function snapshot(): MarketSnapshot {
     return toMarketSnapshot(state, lastAdvancedAtMs);
@@ -91,7 +98,19 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
     }
 
     const deltaMs = nowMs - lastAdvancedAtMs;
-    state = tickMarket(state, nowMs, deltaMs, pressureByAsset, rng);
+    const combinedPressureByAsset: Record<string, MarketPressure> = {};
+    for (const asset of state.assets) {
+      const supplied = pressureByAsset[asset.id];
+      const simulated = calculateSimulatedInvestorPressure(
+        asset,
+        combinedEventEffect(state.activeEvents, asset, nowMs)
+      );
+      combinedPressureByAsset[asset.id] = {
+        simulated: simulated + (supplied?.simulated ?? 0),
+        player: playerPressure.pressureForAsset(asset.id, nowMs) + (supplied?.player ?? 0)
+      };
+    }
+    state = tickMarket(state, nowMs, deltaMs, combinedPressureByAsset, rng);
     lastAdvancedAtMs = nowMs;
 
     const nextSnapshot = snapshot();
@@ -104,6 +123,28 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
   function subscribe(listener: MarketSnapshotListener): () => void {
     listeners.add(listener);
     return () => listeners.delete(listener);
+  }
+
+  function recordPlayerTrade(
+    assetId: string,
+    side: TradeSide,
+    quantity: number,
+    executedAtMs: number
+  ): void {
+    playerPressure.recordTrade(assetId, side, quantity, executedAtMs);
+  }
+
+  function playerPressureForAsset(assetId: string, nowMs: number): number {
+    return playerPressure.pressureForAsset(assetId, nowMs);
+  }
+
+  function simulatedPressureForAsset(assetId: string, nowMs: number): number {
+    const asset = state.assets.find((candidate) => candidate.id === assetId);
+    if (!asset) return 0;
+    return calculateSimulatedInvestorPressure(
+      asset,
+      combinedEventEffect(state.activeEvents, asset, nowMs)
+    );
   }
 
   function start(): void {
@@ -119,5 +160,14 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
     cancelScheduledTick = undefined;
   }
 
-  return { snapshot, advanceTo, subscribe, start, stop };
+  return {
+    snapshot,
+    advanceTo,
+    recordPlayerTrade,
+    playerPressureForAsset,
+    simulatedPressureForAsset,
+    subscribe,
+    start,
+    stop
+  };
 }

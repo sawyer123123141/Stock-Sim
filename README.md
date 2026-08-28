@@ -14,7 +14,7 @@ The first playable client intentionally stays narrow: five visible assets, one s
 
 Stage 1.1 sharpens the first few minutes without adding another system: empty accounts no longer waste space on a blank position card, successful trades show a compact receipt using the authoritative server fill, beginner objectives advance through a tiny first-session sequence without regressing after a sale, the chart waits for a real second snapshot instead of fabricating a line, and live quote updates get a restrained visual pulse. The objective memory is browser-session guidance only, not persistent account state.
 
-A database, authentication, advanced orders, persistent historical chart data, player trade impact on prices, and broader progression/social systems are still deliberately deferred. The project separates each slice so the first playable does not become an enormous pile of half-understood features.
+A database, authentication, advanced orders, persistent historical chart data, and broader progression/social systems are still deliberately deferred. Successful player trades now add only a small, short-lived server-owned pressure signal, while deterministic simulated investor activity remains the dominant market force. The project separates each slice so the first playable does not become an enormous pile of half-understood features.
 
 ## Architecture
 
