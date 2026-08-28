@@ -127,3 +127,92 @@ If the artwork clashes with the interface, refine the **global art rules first**
 ## Progression and art
 
 Early screens remain visually simple. As the player progresses, personality and depth should reveal themselves inside familiar screens through richer company information, event markers, research, news, and artwork rather than adding permanent clutter or new navigation for every system.
+
+## Market readability and event reaction
+
+The market should be uncertain but **readable enough that trading is a decision, not a guess at a squiggly line**.
+
+Do not make headlines map one-to-one to individual drops or spikes. Do not use a deterministic pattern such as “good news appears, then the stock rises exactly 20 seconds later.” That would turn trading into a reaction-time exploit rather than strategy.
+
+Preferred model:
+
+> **News/event becomes public → market participants react gradually → buying/selling pressure builds and decays → price responds over multiple ticks while other forces still matter.**
+
+An event therefore contributes pressure rather than directly assigning a price move. Its effect can be offset or reinforced by normal market noise, sector conditions, sentiment, momentum, other events, and demand.
+
+A useful event model can eventually include:
+
+- direction;
+- strength;
+- confidence;
+- reaction speed;
+- duration.
+
+This allows different events to behave differently. A major earnings surprise can create strong pressure that lasts, a weak rumor can create uncertain short-lived movement, and a major scandal can begin affecting the market quickly while continuing to matter afterward.
+
+### News / event feed
+
+The news feed tells the player **what happened**. It should appear early enough that the player can form a view before the full market reaction has played out, but it should not promise a guaranteed result or exact percentage move.
+
+Example structure:
+
+- headline;
+- one-sentence explanation;
+- affected company/sector;
+- qualitative context where justified.
+
+Avoid countdowns that imply a guaranteed future movement.
+
+### Market Pulse
+
+Market Pulse is forward-looking but intentionally approximate. It summarizes the current balance of forces rather than predicting an exact outcome.
+
+Examples:
+
+- `Short-term pressure: Slightly upward`
+- `Positive launch news is attracting buyers, but recent momentum remains weak.`
+
+For stocks, the initial target should be a calm, strategic horizon of roughly **the next minute**, not a stressful 10-second timer. The exact production timing should be tuned through playtesting rather than treated as a fixed promise.
+
+For crypto, the same concept can operate on a much shorter horizon because crypto is intentionally faster, noisier, and more stressful than stocks.
+
+Do not expose exact expected-return percentages to beginners. The goal is to support judgment, not reveal the simulation formula.
+
+### Why It Moved
+
+`Why It Moved` is backward-looking. It should summarize a **rolling recent period** rather than trying to attach a perfect explanation to every individual tick.
+
+Example:
+
+- Strong preorder news ↑
+- Mobility sector strength ↑
+- Selling pressure ↓
+- Overall recent effect: moderately positive
+
+The explanation should reflect the strongest actual contributors from the simulation, not fabricated flavor text.
+
+### Beginner risk/readability
+
+Early players should get simple decision support before advanced metrics are exposed. A future asset view can communicate ideas such as:
+
+- qualitative risk level;
+- current short-term outlook;
+- a few plain-language reasons;
+- current price/chart;
+- one clear trade path.
+
+Later progression can reveal deeper volatility, momentum, sentiment, company strength, sector conditions, event history, and investor activity inside the same familiar asset screen.
+
+### Optional prediction-learning interaction
+
+A future non-wager learning interaction may let the player make a simple short-horizon prediction such as **Rise / Roughly Flat / Fall**, then later compare that prediction with what happened and explain why.
+
+This is educational/gameplay feedback only. It must not require staking currency, gambling, or provide a guaranteed trading signal.
+
+## Design principle
+
+The desired feeling is:
+
+> **Information arrives early enough to think, but never early enough to make the outcome certain.**
+
+Stocks should generally reward calm interpretation and give the player room to think. Crypto can legitimately be faster, noisier, and more stressful.
