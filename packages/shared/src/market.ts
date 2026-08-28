@@ -43,7 +43,8 @@ export interface MarketEvent {
   title: string;
   summary: string;
   effect: number;
-  startsAt: number;
+  publishedAt: number;
+  reactionStartsAt: number;
   expiresAt: number;
   target: MarketEventTarget;
 }
@@ -64,15 +65,27 @@ export interface AssetSnapshot {
   symbol: string;
   name: string;
   kind: AssetKind;
+  sector: string;
   price: number;
   lastTickChangePct: number;
   reasons: MovementReason[];
+}
+
+export interface MarketEventSnapshot {
+  id: string;
+  title: string;
+  summary: string;
+  target: MarketEventTarget;
+  publishedAt: string;
+  reactionStartsAt: string;
+  expiresAt: string;
 }
 
 export interface MarketSnapshot {
   sequence: number;
   generatedAt: string;
   assets: AssetSnapshot[];
+  events: MarketEventSnapshot[];
 }
 
 export interface MovementContribution {

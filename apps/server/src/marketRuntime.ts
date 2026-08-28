@@ -1,5 +1,8 @@
 import type { MarketSnapshot, MarketState } from "../../../packages/shared/src/index.js";
 import {
+  EVENT_CADENCE_MS,
+  FIRST_EVENT_DELAY_MS,
+  createMarketEvent,
   createSeedMarket,
   createSeededRng,
   tickMarket,
@@ -21,6 +24,8 @@ export interface MarketRuntimeOptions {
   clock?: MarketClock;
   scheduler?: MarketScheduler;
   tickIntervalMs?: number;
+  firstEventDelayMs?: number;
+  eventIntervalMs?: number;
 }
 
 export interface MarketRuntime {
@@ -49,6 +54,10 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
   const scheduler = options.scheduler ?? SYSTEM_SCHEDULER;
   const tickIntervalMs = options.tickIntervalMs ?? DEFAULT_TICK_INTERVAL_MS;
   let lastAdvancedAtMs = options.startedAtMs ?? clock();
+  const firstEventDelayMs = options.firstEventDelayMs ?? FIRST_EVENT_DELAY_MS;
+  const eventIntervalMs = options.eventIntervalMs ?? EVENT_CADENCE_MS;
+  let nextEventAtMs = lastAdvancedAtMs + firstEventDelayMs;
+  let eventCount = 0;
   let cancelScheduledTick: (() => void) | undefined;
   const listeners = new Set<MarketSnapshotListener>();
 
@@ -66,6 +75,19 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
 
     if (nowMs <= lastAdvancedAtMs) {
       return snapshot();
+    }
+
+    while (nextEventAtMs <= nowMs) {
+      eventCount += 1;
+      state = {
+        ...state,
+        activeEvents: [...state.activeEvents, createMarketEvent({
+          id: `event-${eventCount}`,
+          publishedAt: nextEventAtMs,
+          rng
+        })]
+      };
+      nextEventAtMs += eventIntervalMs;
     }
 
     const deltaMs = nowMs - lastAdvancedAtMs;

@@ -1,6 +1,7 @@
 import { AssetRail } from "./components/AssetRail";
 import { MarketHeader } from "./components/MarketHeader";
 import { MovementStory } from "./components/MovementStory";
+import { NewsStory } from "./components/NewsStory";
 import { NextObjective } from "./components/NextObjective";
 import { PositionCard } from "./components/PositionCard";
 import { PriceChart } from "./components/PriceChart";
@@ -12,6 +13,7 @@ import {
   marketChangeTone
 } from "./format";
 import { useMarketSession } from "./useMarketSession";
+import { selectRelevantMarketEvent } from "./marketEventSelection";
 
 export function App() {
   const session = useMarketSession();
@@ -46,6 +48,7 @@ export function App() {
   const marketTone = marketChangeTone(asset.lastTickChangePct);
   const marketChange = describeMarketChange(asset.lastTickChangePct);
   const lastFill = session.lastTrade?.assetId === asset.id ? session.lastTrade : null;
+  const selectedEvent = selectRelevantMarketEvent(asset, session.market.events);
 
   return (
     <main className="app-shell">
@@ -117,7 +120,10 @@ export function App() {
         </aside>
       </div>
 
-      <section className="insight-strip" aria-label="Market guidance">
+      <section className={`insight-strip${selectedEvent ? " has-news" : ""}`} aria-label="Market guidance">
+        {selectedEvent && (
+          <NewsStory event={selectedEvent} generatedAt={session.market.generatedAt} />
+        )}
         <MovementStory asset={asset} />
         <NextObjective ownedAssetCount={session.firstSessionOwnedAssetCount} />
       </section>

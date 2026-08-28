@@ -1,4 +1,4 @@
-import type { MarketPressure, MarketSnapshot, MarketState } from "../../shared/src/index.js";
+import type { MarketEvent, MarketEventSnapshot, MarketPressure, MarketSnapshot, MarketState } from "../../shared/src/index.js";
 import { combinedEventEffect } from "./events.js";
 import type { RandomSource } from "./rng.js";
 import { tickAsset } from "./tick.js";
@@ -33,14 +33,30 @@ export function toMarketSnapshot(state: MarketState, generatedAtMs: number): Mar
   return {
     sequence: state.sequence,
     generatedAt: new Date(generatedAtMs).toISOString(),
-    assets: state.assets.map(({ id, symbol, name, kind, price, lastTickChangePct, reasons }) => ({
+    assets: state.assets.map(({ id, symbol, name, kind, sector, price, lastTickChangePct, reasons }) => ({
       id,
       symbol,
       name,
       kind,
+      sector,
       price,
       lastTickChangePct,
       reasons
-    }))
+    })),
+    events: state.activeEvents
+      .filter((event) => event.publishedAt <= generatedAtMs && event.expiresAt > generatedAtMs)
+      .map(toMarketEventSnapshot)
+  };
+}
+
+function toMarketEventSnapshot(event: MarketEvent): MarketEventSnapshot {
+  return {
+    id: event.id,
+    title: event.title,
+    summary: event.summary,
+    target: { ...event.target },
+    publishedAt: new Date(event.publishedAt).toISOString(),
+    reactionStartsAt: new Date(event.reactionStartsAt).toISOString(),
+    expiresAt: new Date(event.expiresAt).toISOString()
   };
 }
