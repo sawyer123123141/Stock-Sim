@@ -8,7 +8,7 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-interface TradeImpulse {
+export interface TradeImpulse {
   value: number;
   recordedAtMs: number;
 }
@@ -16,10 +16,16 @@ interface TradeImpulse {
 export interface PlayerPressureBook {
   recordTrade(assetId: string, side: TradeSide, quantity: number, recordedAtMs: number): void;
   pressureForAsset(assetId: string, nowMs: number): number;
+  recoveryState(): Record<string, TradeImpulse[]>;
 }
 
-export function createPlayerPressureBook(): PlayerPressureBook {
-  const impulsesByAsset = new Map<string, TradeImpulse[]>();
+export function createPlayerPressureBook(initialState: Record<string, TradeImpulse[]> = {}): PlayerPressureBook {
+  const impulsesByAsset = new Map<string, TradeImpulse[]>(
+    Object.entries(initialState).map(([assetId, impulses]) => [
+      assetId,
+      impulses.map((impulse) => ({ ...impulse }))
+    ])
+  );
 
   function recordTrade(assetId: string, side: TradeSide, quantity: number, recordedAtMs: number): void {
     if (!Number.isFinite(recordedAtMs) || !Number.isSafeInteger(quantity) || quantity <= 0) return;
@@ -53,5 +59,12 @@ export function createPlayerPressureBook(): PlayerPressureBook {
     return clamp(pressure, -MAX_PLAYER_PRESSURE, MAX_PLAYER_PRESSURE);
   }
 
-  return { recordTrade, pressureForAsset };
+  function recoveryState(): Record<string, TradeImpulse[]> {
+    return Object.fromEntries([...impulsesByAsset].map(([assetId, impulses]) => [
+      assetId,
+      impulses.map((impulse) => ({ ...impulse }))
+    ]));
+  }
+
+  return { recordTrade, pressureForAsset, recoveryState };
 }

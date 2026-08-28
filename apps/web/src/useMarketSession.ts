@@ -8,7 +8,7 @@ import type {
   TradeFill,
   TradeSide
 } from "../../../packages/shared/src/index";
-import { fetchMarket, fetchPortfolio, openMarketSocket, submitTrade } from "./api";
+import { fetchMarket, fetchPortfolio, openMarketUpdates, submitTrade } from "./api";
 import { rememberOwnedAssetIds } from "./firstSessionProgress";
 import {
   applyMarketSnapshot,
@@ -66,7 +66,7 @@ export function useMarketSession(): MarketSession {
   useEffect(() => {
     let cancelled = false;
 
-    const socket = openMarketSocket(
+    const socket = openMarketUpdates(
       (snapshot) => {
         if (cancelled) return;
         setConnectionNotice(null);

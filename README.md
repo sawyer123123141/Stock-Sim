@@ -8,7 +8,7 @@ A player should be able to start with almost no knowledge of stocks, understand 
 
 The repository now contains the deterministic stock/crypto simulation, authoritative realtime market server, server-owned fictional portfolio/trading slice, and the first playable React + Vite market client.
 
-The server owns market time, prices, cash, holdings, and trade execution. The current prototype supports one configured demo player with **$10,000.00 of fictional starting cash**, immediate whole-unit Buy/Sell market orders, no short selling, and no fees. Portfolio state is intentionally in memory and resets when the server restarts.
+The server owns market time, prices, cash, holdings, and trade execution. The current prototype supports one configured demo player with **$10,000.00 of fictional starting cash**, immediate whole-unit Buy/Sell market orders, no short selling, and no fees. Local Fastify development remains in memory. Hosted previews use one private Supabase Postgres row, locked for every market advance and trade, so the shared market and demo portfolio survive Vercel instance changes.
 
 The first playable client intentionally stays narrow: five visible assets, one selected asset, a live-session chart built only from authoritative snapshots received during the current browser session, one Buy/Sell path, a compact position panel, one plain-language movement story, and one next objective. The browser projects the server-owned holdings over the latest authoritative WebSocket prices so displayed portfolio value and unrealized P/L stay current without letting the client invent canonical balances or fills.
 
@@ -39,7 +39,7 @@ npm run build:web
 
 `npm test` compiles the Node/shared TypeScript, runs the behavior/regression suite, and builds the browser client. `npm run typecheck` checks both the Node/shared code and the strict browser TypeScript project. `npm run demo` prints a small fictional market with beginner-readable explanations. `npm run start:server` builds and starts the authoritative server on port `3000` by default; `HOST` and `PORT` can override its listener settings. `npm run dev:web` starts the Vite development client, and `npm run build:web` creates the production browser bundle.
 
-For the playable client, run the server and Vite dev client in separate terminals. The Vite config proxies API and WebSocket traffic to the local authoritative server.
+For the playable client, run the server and Vite dev client in separate terminals. The Vite config proxies API traffic to the local authoritative server. The browser receives authoritative market updates through a five-second polling subscription so a serverless preview never relies on a process-local publisher.
 
 Current server endpoints:
 
@@ -49,6 +49,10 @@ Current server endpoints:
 - `POST /api/trades` — immediate fictional Buy/Sell intent using only `assetId`, `side`, and whole-unit `quantity`.
 
 The client never supplies canonical prices, balances, holdings, or an arbitrary player identity.
+
+## Hosted preview configuration
+
+Deploy with Vercel from this repository. Configure the server-only `DATABASE_URL` environment variable with the Supabase **transaction-pooler** connection string; do not give it a `VITE_` prefix and never commit it. `supabase/migrations/` contains the version-controlled private schema migration. The persistent authority replays ordinary five-second simulation steps while catching up from inactivity, preserving seeded RNG, event timing, and active player-pressure impulses without exposing those internal values to the browser.
 
 ## First playable boundaries
 

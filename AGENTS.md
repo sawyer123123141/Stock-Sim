@@ -296,9 +296,9 @@ If this snapshot and git disagree, trust git/test evidence and repair the snapsh
 
 **Canonical merge target:** `main`
 
-**Current `main` implementation merge:** `59c6f7dbbf4a298d3374159d3493375de08a3603` (PR #4, Stage 1.1 first-session polish)
+**Current `main` implementation merge:** `c16df10db7aa7102cc1e836e9fe0a585fd5368a4` (PR #13, Market Pulse/readability)
 
-**Active implementation branch:** none. Start future feature work from current `main` on a fresh branch.
+**Active implementation branch:** `codex/persistent-preview` (unmerged hosted-preview persistence work).
 
 **Last behavior-changing implementation commit:** `041081852b5c621f88da6c7f685cf3b9018ab9a5` (contained in PR #4 / the merge above).
 
@@ -315,7 +315,7 @@ If this snapshot and git disagree, trust git/test evidence and repair the snapsh
 
 **Intentional limitations:**
 
-- portfolio state resets on server restart;
+- local Fastify development portfolio state resets on server restart; the hosted preview uses the scoped persistent demo state described above;
 - one configured demo player; no authentication/accounts;
 - no database/ORM;
 - chart history remains browser-session-only;

@@ -7,13 +7,13 @@ import {
   calculateMarketRead,
   createMarketEvent,
   createSeedMarket,
-  createSeededRng,
+  createStatefulSeededRng,
   tickMarket,
   toMarketSnapshot,
   type MarketReadByAsset,
   type PressureByAsset
 } from "../../../packages/sim/src/index.js";
-import { createPlayerPressureBook } from "./playerPressure.js";
+import { createPlayerPressureBook, type TradeImpulse } from "./playerPressure.js";
 
 export type MarketSnapshotListener = (snapshot: MarketSnapshot) => void;
 export type MarketClock = () => number;
@@ -31,6 +31,19 @@ export interface MarketRuntimeOptions {
   tickIntervalMs?: number;
   firstEventDelayMs?: number;
   eventIntervalMs?: number;
+  recoveryState?: MarketRuntimeRecoveryState;
+}
+
+export interface MarketRuntimeRecoveryState {
+  marketState: MarketState;
+  rngState: number;
+  lastAdvancedAtMs: number;
+  nextEventAtMs: number;
+  eventCount: number;
+  tickIntervalMs: number;
+  firstEventDelayMs: number;
+  eventIntervalMs: number;
+  playerPressure: Record<string, TradeImpulse[]>;
 }
 
 export interface MarketRuntime {
@@ -42,6 +55,7 @@ export interface MarketRuntime {
   subscribe(listener: MarketSnapshotListener): () => void;
   start(): void;
   stop(): void;
+  recoveryState(): MarketRuntimeRecoveryState;
 }
 
 const DEFAULT_SEED = 0x4d41524b;
@@ -56,19 +70,20 @@ const SYSTEM_SCHEDULER: MarketScheduler = {
 };
 
 export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketRuntime {
-  let state = options.initialState ?? createSeedMarket();
-  const rng = createSeededRng(options.seed ?? DEFAULT_SEED);
+  const recovery = options.recoveryState;
+  let state = recovery?.marketState ?? options.initialState ?? createSeedMarket();
+  const rng = createStatefulSeededRng(recovery?.rngState ?? options.seed ?? DEFAULT_SEED);
   const clock = options.clock ?? SYSTEM_CLOCK;
   const scheduler = options.scheduler ?? SYSTEM_SCHEDULER;
-  const tickIntervalMs = options.tickIntervalMs ?? DEFAULT_TICK_INTERVAL_MS;
-  let lastAdvancedAtMs = options.startedAtMs ?? clock();
-  const firstEventDelayMs = options.firstEventDelayMs ?? FIRST_EVENT_DELAY_MS;
-  const eventIntervalMs = options.eventIntervalMs ?? EVENT_CADENCE_MS;
-  let nextEventAtMs = lastAdvancedAtMs + firstEventDelayMs;
-  let eventCount = 0;
+  const tickIntervalMs = recovery?.tickIntervalMs ?? options.tickIntervalMs ?? DEFAULT_TICK_INTERVAL_MS;
+  let lastAdvancedAtMs = recovery?.lastAdvancedAtMs ?? options.startedAtMs ?? clock();
+  const firstEventDelayMs = recovery?.firstEventDelayMs ?? options.firstEventDelayMs ?? FIRST_EVENT_DELAY_MS;
+  const eventIntervalMs = recovery?.eventIntervalMs ?? options.eventIntervalMs ?? EVENT_CADENCE_MS;
+  let nextEventAtMs = recovery?.nextEventAtMs ?? lastAdvancedAtMs + firstEventDelayMs;
+  let eventCount = recovery?.eventCount ?? 0;
   let cancelScheduledTick: (() => void) | undefined;
   const listeners = new Set<MarketSnapshotListener>();
-  const playerPressure = createPlayerPressureBook();
+  const playerPressure = createPlayerPressureBook(recovery?.playerPressure);
 
   function snapshot(): MarketSnapshot {
     return toMarketSnapshot(state, lastAdvancedAtMs, currentMarketReads(lastAdvancedAtMs));
@@ -175,6 +190,20 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
     cancelScheduledTick = undefined;
   }
 
+  function recoveryState(): MarketRuntimeRecoveryState {
+    return {
+      marketState: state,
+      rngState: rng.state(),
+      lastAdvancedAtMs,
+      nextEventAtMs,
+      eventCount,
+      tickIntervalMs,
+      firstEventDelayMs,
+      eventIntervalMs,
+      playerPressure: playerPressure.recoveryState()
+    };
+  }
+
   return {
     snapshot,
     advanceTo,
@@ -183,6 +212,7 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
     simulatedPressureForAsset,
     subscribe,
     start,
-    stop
+    stop,
+    recoveryState
   };
 }
