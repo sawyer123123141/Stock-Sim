@@ -394,6 +394,41 @@ input:focus-visible {
   font-weight: 600;
 }
 
+.market-pulse {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: -4px 0 16px;
+  padding: 11px 2px;
+  border-top: 1px solid rgba(154, 171, 211, 0.09);
+  border-bottom: 1px solid rgba(154, 171, 211, 0.09);
+}
+
+.market-pulse dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  margin: 0;
+}
+
+.market-pulse dl > div {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.market-pulse dt {
+  color: var(--muted-2);
+  font-size: 0.7rem;
+}
+
+.market-pulse dd {
+  margin: 0;
+  color: #dbe3f6;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
 .market-up { color: var(--up); }
 .market-down { color: var(--down); }
 .market-neutral { color: var(--muted); }
@@ -590,6 +625,12 @@ input:focus-visible {
 
   .quote-block {
     justify-items: start;
+  }
+
+  .market-pulse {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .price-chart {

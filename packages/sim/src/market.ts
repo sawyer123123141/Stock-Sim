@@ -1,9 +1,18 @@
-import type { MarketEvent, MarketEventSnapshot, MarketPressure, MarketSnapshot, MarketState } from "../../shared/src/index.js";
+import type {
+  MarketEvent,
+  MarketEventSnapshot,
+  MarketPressure,
+  MarketReadSnapshot,
+  MarketSnapshot,
+  MarketState
+} from "../../shared/src/index.js";
 import { combinedEventEffect } from "./events.js";
+import { calculateMarketRead } from "./marketRead.js";
 import type { RandomSource } from "./rng.js";
 import { tickAsset } from "./tick.js";
 
 export type PressureByAsset = Readonly<Record<string, MarketPressure | undefined>>;
+export type MarketReadByAsset = Readonly<Record<string, MarketReadSnapshot | undefined>>;
 
 const ZERO_PRESSURE: MarketPressure = { simulated: 0, player: 0 };
 
@@ -29,19 +38,24 @@ export function tickMarket(
   };
 }
 
-export function toMarketSnapshot(state: MarketState, generatedAtMs: number): MarketSnapshot {
+export function toMarketSnapshot(
+  state: MarketState,
+  generatedAtMs: number,
+  marketReadByAsset: MarketReadByAsset = {}
+): MarketSnapshot {
   return {
     sequence: state.sequence,
     generatedAt: new Date(generatedAtMs).toISOString(),
-    assets: state.assets.map(({ id, symbol, name, kind, sector, price, lastTickChangePct, reasons }) => ({
-      id,
-      symbol,
-      name,
-      kind,
-      sector,
-      price,
-      lastTickChangePct,
-      reasons
+    assets: state.assets.map((asset) => ({
+      id: asset.id,
+      symbol: asset.symbol,
+      name: asset.name,
+      kind: asset.kind,
+      sector: asset.sector,
+      price: asset.price,
+      lastTickChangePct: asset.lastTickChangePct,
+      marketRead: marketReadByAsset[asset.id] ?? calculateMarketRead(asset, ZERO_PRESSURE),
+      reasons: asset.reasons
     })),
     events: state.activeEvents
       .filter((event) => event.publishedAt <= generatedAtMs && event.expiresAt > generatedAtMs)

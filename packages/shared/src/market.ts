@@ -1,5 +1,12 @@
 export type AssetKind = "stock" | "crypto";
 export type Direction = "up" | "down";
+export type MarketRisk = "low" | "medium" | "high";
+export type MarketPressureOutlook =
+  | "down"
+  | "slightly-down"
+  | "balanced"
+  | "slightly-up"
+  | "up";
 export type ReasonCode =
   | "company"
   | "sector"
@@ -68,7 +75,13 @@ export interface AssetSnapshot {
   sector: string;
   price: number;
   lastTickChangePct: number;
+  marketRead: MarketReadSnapshot;
   reasons: MovementReason[];
+}
+
+export interface MarketReadSnapshot {
+  risk: MarketRisk;
+  pressure: MarketPressureOutlook;
 }
 
 export interface MarketEventSnapshot {
