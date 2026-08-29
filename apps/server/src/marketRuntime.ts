@@ -122,7 +122,8 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
         activeEvents: [...state.activeEvents, createMarketEvent({
           id: `event-${eventCount}`,
           publishedAt: nextEventAtMs,
-          rng
+          rng,
+          assets: state.assets
         })]
       };
       nextEventAtMs += eventIntervalMs;

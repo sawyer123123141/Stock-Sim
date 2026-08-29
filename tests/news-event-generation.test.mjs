@@ -9,12 +9,14 @@ test("event generation replays the same curated event for the same seed and publ
   const first = createMarketEvent({
     id: "event-1",
     publishedAt: 120_000,
-    rng: createSeededRng(90210)
+    rng: createSeededRng(90210),
+    assets: createSeedMarket().assets
   });
   const replay = createMarketEvent({
     id: "event-1",
     publishedAt: 120_000,
-    rng: createSeededRng(90210)
+    rng: createSeededRng(90210),
+    assets: createSeedMarket().assets
   });
 
   assert.deepEqual(first, replay);
