@@ -81,18 +81,51 @@ test("surprise compares outcomes against expectations independently of whether a
   assert.equal(meetsExpectation, 0);
 });
 
-test("compatibility effects are bounded, follow surprise, and scale with significance", () => {
+test("compatibility effects keep meaningful significance separation across surprise magnitudes", () => {
   assert.equal(typeof eventGenerator.effectFromStockEventSurprise, "function");
 
-  const minor = eventGenerator.effectFromStockEventSurprise(0.6, "minor");
-  const major = eventGenerator.effectFromStockEventSurprise(0.6, "major");
-  const negative = eventGenerator.effectFromStockEventSurprise(-0.6, "major");
-  const bounded = eventGenerator.effectFromStockEventSurprise(10, "transformative");
+  const tiers = ["minor", "normal", "major", "transformative"];
+  const effectsFor = (surprise) => tiers.map((significance) =>
+    eventGenerator.effectFromStockEventSurprise(surprise, significance)
+  );
+  const assertOrderedTiers = (effects, minimumGap = 0) => {
+    for (let index = 1; index < effects.length; index += 1) {
+      assert.ok(effects[index] > effects[index - 1]);
+      assert.ok(effects[index] - effects[index - 1] >= minimumGap);
+    }
+  };
 
-  assert.ok(minor > 0);
-  assert.ok(major > minor);
-  assert.ok(negative < 0);
-  assert.ok(bounded <= 1);
+  assert.equal(eventGenerator.effectFromStockEventSurprise(0, "transformative"), 0);
+
+  const small = effectsFor(0.02);
+  const moderate = effectsFor(0.2);
+  const large = effectsFor(0.6);
+  assert.ok(small[3] < 0.15, "a small surprise remains a small influence signal");
+  assertOrderedTiers(small, 0.01);
+  assertOrderedTiers(moderate, 0.05);
+  assertOrderedTiers(large, 0.05);
+
+  const negativeLarge = effectsFor(-0.6);
+  for (let index = 0; index < large.length; index += 1) {
+    assert.equal(negativeLarge[index], -large[index]);
+  }
+  for (const surprise of [-10, -0.6, -0.2, -0.02, 0, 0.02, 0.2, 0.6, 10]) {
+    for (const effect of effectsFor(surprise)) {
+      assert.ok(Math.abs(effect) <= 0.75);
+    }
+  }
+});
+
+test("the commuter launch retains a meaningful but bounded game-pacing effect", () => {
+  const event = eventGenerator.createMarketEvent({
+    id: "nova-demand",
+    publishedAt: 10_000,
+    rng: () => 0,
+    assets: createSeedMarket().assets
+  });
+
+  assert.ok(event.effect > 0.25);
+  assert.ok(event.effect < 0.75);
 });
 
 test("crypto events retain the legacy numeric-only event path", () => {

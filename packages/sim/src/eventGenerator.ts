@@ -118,12 +118,12 @@ export interface CreateMarketEventOptions {
 
 const EXPECTATION_DIMENSIONS = ["growth", "profitability", "demand", "execution"] as const;
 const SIGNIFICANCE_EFFECT_SCALE: Readonly<Record<EventSignificance, number>> = {
-  minor: 0.35,
-  normal: 0.55,
-  major: 0.75,
+  minor: 0.3,
+  normal: 0.8,
+  major: 0.9,
   transformative: 1
 };
-const COMPATIBILITY_EFFECT_AMPLIFIER = 16;
+const COMPATIBILITY_RESPONSE_GAIN = 10;
 const MAX_COMPATIBILITY_EFFECT = 0.75;
 
 function matchingStocks(target: MarketEventTarget, assets: AssetState[]): AssetState[] {
@@ -184,10 +184,9 @@ export function effectFromStockEventSurprise(
   surprise: number,
   significance: EventSignificance
 ): number {
-  const scaledSurprise = clamp(surprise, -1, 1)
-    * SIGNIFICANCE_EFFECT_SCALE[significance]
-    * COMPATIBILITY_EFFECT_AMPLIFIER;
-  return Math.tanh(scaledSurprise) * MAX_COMPATIBILITY_EFFECT;
+  const boundedResponse = Math.tanh(clamp(surprise, -1, 1) * COMPATIBILITY_RESPONSE_GAIN)
+    * MAX_COMPATIBILITY_EFFECT;
+  return boundedResponse * SIGNIFICANCE_EFFECT_SCALE[significance];
 }
 
 export function createMarketEvent(options: CreateMarketEventOptions): MarketEvent {
