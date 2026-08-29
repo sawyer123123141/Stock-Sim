@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { AssetSnapshot, MarketStoryUpdateSnapshot } from "../../../../packages/shared/src/index";
 import { describeMarketChange, formatMoney, marketChangeTone } from "../format";
-import { selectChartStoryMarkers } from "../priceChartMarkers";
+import { selectChartSamplePositions, selectChartStoryMarkers } from "../priceChartMarkers";
 import type { PriceSample } from "../useMarketSession";
 
 export interface PriceChartProps {
@@ -28,19 +28,22 @@ export function PriceChart({ asset, samples, updates }: PriceChartProps) {
   const drawableWidth = WIDTH - PAD_X * 2;
   const drawableHeight = HEIGHT - PAD_Y * 2;
   const hasLine = samples.length >= 2;
+  const samplePositions = selectChartSamplePositions(samples);
   const markers = selectChartStoryMarkers(samples, updates);
   const activeMarker = markers.find((marker) => marker.update.id === activeMarkerId) ?? null;
 
   const path = hasLine
     ? samples.map((point, index) => {
-      const x = PAD_X + (index / Math.max(samples.length - 1, 1)) * drawableWidth;
+      const x = PAD_X + (samplePositions[index]?.x ?? 0) * drawableWidth;
       const y = PAD_Y + ((max - point.price) / range) * drawableHeight;
       return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
     }).join(" ")
     : "";
 
   const latest = samples[samples.length - 1];
-  const latestX = hasLine ? WIDTH - PAD_X : WIDTH / 2;
+  const latestX = hasLine
+    ? PAD_X + (samplePositions.at(-1)?.x ?? 1) * drawableWidth
+    : WIDTH / 2;
   const latestY = latest
     ? PAD_Y + ((max - latest.price) / range) * drawableHeight
     : HEIGHT / 2;
@@ -96,6 +99,8 @@ export function PriceChart({ asset, samples, updates }: PriceChartProps) {
               tabIndex={0}
               aria-label={markerLabel}
               aria-pressed={activeMarkerId === marker.update.id}
+              onMouseEnter={() => setActiveMarkerId(marker.update.id)}
+              onFocus={() => setActiveMarkerId(marker.update.id)}
               onClick={() => setActiveMarkerId(marker.update.id)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {

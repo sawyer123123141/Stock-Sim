@@ -18,6 +18,42 @@ async function markers(samples, updates) {
   return JSON.parse(stdout);
 }
 
+async function timeline(samples) {
+  const { stdout } = await execFile(process.execPath, [
+    "--no-warnings",
+    "--experimental-strip-types",
+    "--input-type=module",
+    "--eval",
+    `import { selectChartSamplePositions } from ${JSON.stringify(markersModule.href)}; console.log(JSON.stringify(selectChartSamplePositions(${JSON.stringify(samples)})));`
+  ]);
+  return JSON.parse(stdout);
+}
+
+test("irregular price samples and story markers share one timestamp X-axis", async () => {
+  const samples = [
+    { atMs: 0, price: 40 },
+    { atMs: 5_000, price: 41 },
+    { atMs: 20_000, price: 42 }
+  ];
+  const [positions, storyMarkers] = await Promise.all([
+    timeline(samples),
+    markers(samples, [{ id: "five-seconds", title: "Update", summary: "", publishedAt: "1970-01-01T00:00:05.000Z" }])
+  ]);
+
+  assert.deepEqual(positions.map((position) => position.x), [0, 0.25, 1]);
+  assert.equal(storyMarkers[0].x, positions[1].x);
+});
+
+test("equal or invalid endpoint timestamps retain a safe evenly spaced price line", async () => {
+  const [equalTimes, invalidEndpoint] = await Promise.all([
+    timeline([{ atMs: 5_000 }, { atMs: 5_000 }, { atMs: 5_000 }]),
+    timeline([{ atMs: null }, { atMs: 5_000 }, { atMs: 10_000 }])
+  ]);
+
+  assert.deepEqual(equalTimes.map((position) => position.x), [0, 0.5, 1]);
+  assert.deepEqual(invalidEndpoint.map((position) => position.x), [0, 0.5, 1]);
+});
+
 test("chart markers include only public updates in the visible timestamp range", async () => {
   const selected = await markers(
     [
@@ -49,8 +85,11 @@ test("the price chart renders neutral accessible public-information markers", as
   ]);
 
   assert.match(chart, /selectChartStoryMarkers/);
+  assert.match(chart, /selectChartSamplePositions/);
   assert.match(chart, /chart-story-marker/);
   assert.match(chart, /role="button"/);
   assert.match(chart, /aria-label/);
+  assert.match(chart, /onMouseEnter/);
+  assert.match(chart, /onFocus/);
   assert.match(app, /selectRelevantMarketStories/);
 });

@@ -44,22 +44,18 @@ export function selectRelevantMarketStory(
   asset: EventSelectableAsset,
   stories: MarketStorySnapshot[]
 ): MarketStorySnapshot | null {
-  let selected: MarketStorySnapshot | null = null;
-  let selectedRelevance = 0;
+  const relevant = stories
+    .map((story) => ({ story, relevance: relevanceForAsset(story, asset) }))
+    .filter((candidate) => candidate.relevance > 0);
+  const developing = relevant.filter((candidate) => candidate.story.status === "developing");
+  const candidates = developing.length > 0 ? developing : relevant;
 
-  for (const story of stories) {
-    const relevance = relevanceForAsset(story, asset);
-    if (relevance === 0) continue;
-    if (
-      relevance > selectedRelevance
-      || (relevance === selectedRelevance && (!selected || storyPublicationTime(story) > storyPublicationTime(selected)))
-    ) {
-      selected = story;
-      selectedRelevance = relevance;
-    }
-  }
-
-  return selected;
+  return candidates
+    .sort((left, right) => (
+      right.relevance - left.relevance
+      || storyPublicationTime(right.story).localeCompare(storyPublicationTime(left.story))
+      || left.story.id.localeCompare(right.story.id)
+    ))[0]?.story ?? null;
 }
 
 export function selectRelevantMarketStories(
