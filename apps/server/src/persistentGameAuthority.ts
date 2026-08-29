@@ -5,7 +5,6 @@ import { InMemoryPortfolioStore, type PortfolioState } from "./portfolioStore.js
 import { createTradingService } from "./tradingService.js";
 
 const DEMO_PLAYER_ID = "demo-player";
-const CATCH_UP_STEP_MS = 5_000;
 
 export interface PersistedGameState {
   runtime: MarketRuntimeRecoveryState;
@@ -42,10 +41,13 @@ export function createPersistentGameAuthority(
       const runtime = createMarketRuntime({ recoveryState: state.runtime });
       const start = state.runtime.lastAdvancedAtMs;
       if (!Number.isFinite(atMs) || atMs < start) throw new RangeError("Market time must not move backward.");
-      for (let stepAtMs = start + CATCH_UP_STEP_MS; stepAtMs < atMs; stepAtMs += CATCH_UP_STEP_MS) {
+      const tickIntervalMs = state.runtime.tickIntervalMs;
+      if (!Number.isFinite(tickIntervalMs) || tickIntervalMs <= 0) {
+        throw new RangeError("Persisted market tick interval must be positive.");
+      }
+      for (let stepAtMs = start + tickIntervalMs; stepAtMs <= atMs; stepAtMs += tickIntervalMs) {
         runtime.advanceTo(stepAtMs);
       }
-      runtime.advanceTo(atMs);
       const result = await mutation(runtime, state, atMs);
       state.runtime = runtime.recoveryState();
       return result;
