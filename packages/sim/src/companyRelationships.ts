@@ -43,6 +43,16 @@ function normalized(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? clamp(value, -1, 1) : undefined;
 }
 
+function dimensionSurprise(
+  event: MarketEvent,
+  dimension: keyof MarketExpectations
+): number | undefined {
+  const actual = normalized(event.outcome?.[dimension]);
+  const expected = normalized(event.expectedOutcome?.[dimension]);
+  if (actual === undefined || expected === undefined) return undefined;
+  return clamp((actual - expected) / 2, -1, 1);
+}
+
 function addDelta(
   deltas: Partial<MarketExpectations>,
   dimension: keyof MarketExpectations,
@@ -54,33 +64,38 @@ function addDelta(
 
 /**
  * Converts one already-public primary event into conservative, sparse target
- * expectations. It cannot inspect pending story information or mutate state.
+ * expectations. It interprets only published expectation surprises, never an
+ * absolute outcome value or pending story information, and cannot mutate state.
  */
 export function deriveRelationshipImpact(
   event: MarketEvent,
   relationship: CompanyRelationship
 ): RelationshipImpact | null {
-  if (event.target.kind !== "asset" || event.target.value !== relationship.fromAssetId || !event.outcome) return null;
+  if (
+    event.target.kind !== "asset"
+    || event.target.value !== relationship.fromAssetId
+    || !event.outcome
+    || !event.expectedOutcome
+  ) return null;
   const scale = INFLUENCE_SCALE[relationship.influence];
   const deltas: Partial<MarketExpectations> = {};
 
   switch (relationship.kind) {
     case "supplier":
-      addDelta(deltas, "execution", mapped(event.outcome.execution, scale));
-      addDelta(deltas, "growth", mapped(event.outcome.competitivePosition, scale * 0.56));
+      addDelta(deltas, "execution", mapped(dimensionSurprise(event, "execution"), scale));
+      addDelta(deltas, "growth", mapped(dimensionSurprise(event, "growth"), scale * 0.56));
       break;
     case "customer":
-      addDelta(deltas, "demand", mapped(event.outcome.demand, scale));
-      addDelta(deltas, "growth", mapped(event.outcome.growth, scale * 0.56));
+      addDelta(deltas, "demand", mapped(dimensionSurprise(event, "demand"), scale));
+      addDelta(deltas, "growth", mapped(dimensionSurprise(event, "growth"), scale * 0.56));
       break;
     case "competitor":
-      addDelta(deltas, "demand", mapped(event.outcome.competitivePosition, -scale * 0.75));
-      addDelta(deltas, "demand", mapped(event.outcome.demand, -scale * 0.7));
-      addDelta(deltas, "demand", mapped(event.outcome.growth, -scale * 0.45));
+      addDelta(deltas, "demand", mapped(dimensionSurprise(event, "demand"), -scale * 0.7));
+      addDelta(deltas, "demand", mapped(dimensionSurprise(event, "growth"), -scale * 0.45));
       break;
     case "partner":
-      addDelta(deltas, "execution", mapped(event.outcome.execution, scale * 0.8));
-      addDelta(deltas, "growth", mapped(event.outcome.growth, scale * 0.56));
+      addDelta(deltas, "execution", mapped(dimensionSurprise(event, "execution"), scale * 0.8));
+      addDelta(deltas, "growth", mapped(dimensionSurprise(event, "growth"), scale * 0.56));
       break;
   }
 
@@ -95,9 +110,8 @@ export function deriveRelationshipImpact(
   };
 }
 
-function mapped(value: unknown, scale: number): number | undefined {
-  const outcome = normalized(value);
-  return outcome === undefined ? undefined : outcome * scale;
+function mapped(value: number | undefined, scale: number): number | undefined {
+  return value === undefined ? undefined : value * scale;
 }
 
 /** Applies only public-belief changes; relationship spillovers never alter company reality. */
