@@ -522,6 +522,42 @@ input:focus-visible {
   stroke-width: 3;
 }
 
+.chart-story-marker {
+  cursor: pointer;
+  outline: none;
+}
+
+.chart-story-marker circle {
+  fill: var(--surface);
+  stroke: rgba(201, 211, 238, 0.82);
+  stroke-width: 1.6;
+}
+
+.chart-story-marker:hover circle,
+.chart-story-marker:focus circle {
+  fill: rgba(181, 173, 255, 0.34);
+  stroke: #d8d3ff;
+}
+
+.chart-marker-detail {
+  position: absolute;
+  bottom: 8px;
+  left: 12px;
+  display: grid;
+  gap: 2px;
+  max-width: min(360px, calc(100% - 24px));
+  padding: 7px 9px;
+  border: 1px solid rgba(158, 174, 210, 0.24);
+  border-radius: 9px;
+  background: rgba(10, 22, 40, 0.92);
+  color: #e8edfa;
+  font-size: 0.68rem;
+}
+
+.chart-marker-detail span {
+  color: var(--muted);
+}
+
 .chart-range {
   pointer-events: none;
   position: absolute;

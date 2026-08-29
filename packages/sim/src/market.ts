@@ -1,6 +1,8 @@
 import type {
   MarketEvent,
   MarketEventSnapshot,
+  MarketStory,
+  MarketStorySnapshot,
   MarketPressure,
   MarketReadSnapshot,
   MarketSnapshot,
@@ -26,6 +28,7 @@ export function tickMarket(
   return {
     sequence: state.sequence + 1,
     activeEvents: state.activeEvents.filter((event) => event.expiresAt > nowMs),
+    stories: state.stories ?? [],
     assets: state.assets.map((asset) => tickAsset(
       asset,
       {
@@ -59,8 +62,38 @@ export function toMarketSnapshot(
     })),
     events: state.activeEvents
       .filter((event) => event.publishedAt <= generatedAtMs && event.expiresAt > generatedAtMs)
-      .map(toMarketEventSnapshot)
+      .map(toMarketEventSnapshot),
+    stories: toMarketStorySnapshots(state.stories ?? [], generatedAtMs)
   };
+}
+
+/**
+ * Projects only currently public story information. This is intentionally the
+ * sole boundary between persisted story plans and browser-visible data.
+ */
+export function toMarketStorySnapshots(
+  stories: MarketStory[],
+  generatedAtMs: number
+): MarketStorySnapshot[] {
+  return stories.flatMap((story) => {
+    const updates = story.updates
+      .filter((update) => update.state === "published" && update.publishedAt <= generatedAtMs)
+      .sort((left, right) => left.publishedAt - right.publishedAt || left.id.localeCompare(right.id))
+      .map((update) => ({
+        id: update.id,
+        title: update.title,
+        summary: update.summary,
+        publishedAt: new Date(update.publishedAt).toISOString()
+      }));
+    if (updates.length === 0) return [];
+    return [{
+      id: story.id,
+      title: story.title,
+      target: { ...story.target },
+      status: story.status,
+      updates
+    }];
+  });
 }
 
 function toMarketEventSnapshot(event: MarketEvent): MarketEventSnapshot {
