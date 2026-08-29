@@ -99,16 +99,16 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
   }
 
   function currentMarketReads(nowMs: number): MarketReadByAsset {
-    return Object.fromEntries(state.assets.map((asset) => [
-      asset.id,
-      calculateMarketRead(asset, {
-        simulated: calculateSimulatedInvestorPressure(
-          asset,
-          combinedEventEffect(state.activeEvents, asset, nowMs)
-        ),
-        player: playerPressure.pressureForAsset(asset.id, nowMs)
-      })
-    ]));
+    return Object.fromEntries(state.assets.map((asset) => {
+      const eventEffect = combinedEventEffect(state.activeEvents, asset, nowMs);
+      return [
+        asset.id,
+        calculateMarketRead(asset, {
+          simulated: calculateSimulatedInvestorPressure(asset, eventEffect),
+          player: playerPressure.pressureForAsset(asset.id, nowMs)
+        }, eventEffect)
+      ];
+    }));
   }
 
   function advanceTo(

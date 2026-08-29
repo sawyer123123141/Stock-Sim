@@ -67,10 +67,15 @@ test("changing one hidden fundamental or expectation only changes its matching q
   );
 });
 
-test("market movement uses calm active elevated semantics without exposing volatility", () => {
+test("market movement uses current activity semantics without exposing raw drivers", () => {
   const stock = createSeedMarket().assets.find((asset) => asset.id === "nova");
   assert.ok(stock);
-  assert.equal(classifyMarketMovement({ ...stock, baselineVolatility: 0.22 }), "calm");
-  assert.equal(classifyMarketMovement({ ...stock, baselineVolatility: 0.5 }), "active");
-  assert.equal(classifyMarketMovement({ ...stock, baselineVolatility: 0.82 }), "elevated");
+  assert.equal(classifyMarketMovement({ ...stock, baselineVolatility: 0.82, lastTickChangePct: 0, momentum: 0 }), "calm");
+  assert.equal(classifyMarketMovement({ ...stock, baselineVolatility: 0.22, lastTickChangePct: 0.2, momentum: 0.08 }), "active");
+  assert.equal(classifyMarketMovement({ ...stock, baselineVolatility: 0.22, lastTickChangePct: 0.42, momentum: 0.3 }), "elevated");
+
+  const publicAsset = toMarketSnapshot({ ...createSeedMarket(), assets: [{ ...stock, lastTickChangePct: 0.42, momentum: 0.3 }] }, 1_000).assets[0];
+  assert.deepEqual(Object.keys(publicAsset.marketRead).sort(), ["movement", "pressure"]);
+  assert.equal(JSON.stringify(publicAsset.marketRead).includes("momentum"), false);
+  assert.equal(JSON.stringify(publicAsset.marketRead).includes("0.42"), false);
 });

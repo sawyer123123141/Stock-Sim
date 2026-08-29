@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  calculateMarketRead,
   classifyMarketPressure,
   classifyMarketMovement,
-  classifyMarketRisk,
   createSeedMarket
 } from "../dist/packages/sim/src/index.js";
 import { createMarketRuntime } from "../dist/apps/server/src/marketRuntime.js";
@@ -14,20 +14,32 @@ function assetWith(overrides) {
   return { ...nova, ...overrides };
 }
 
-test("market movement classification is deterministic and follows baseline volatility", () => {
-  const calmerStock = assetWith({ baselineVolatility: 0.22, kind: "stock" });
-  const moreVolatileAsset = assetWith({ baselineVolatility: 0.82, kind: "crypto" });
+test("the same asset can be calm or elevated according to current activity", () => {
+  const quietNova = assetWith({ lastTickChangePct: 0.01, momentum: 0.01 });
+  const eventfulNova = assetWith({ lastTickChangePct: 0.42, momentum: 0.3 });
 
-  assert.equal(classifyMarketMovement(calmerStock), "calm");
-  assert.equal(classifyMarketMovement(calmerStock), "calm");
-  assert.equal(classifyMarketMovement(moreVolatileAsset), "elevated");
+  assert.equal(classifyMarketMovement(quietNova), "calm");
+  assert.equal(classifyMarketMovement(eventfulNova), "elevated");
+  assert.equal(classifyMarketMovement(eventfulNova), "elevated");
 });
 
-test("normal seed crypto does not appear calm", () => {
-  const crypto = createSeedMarket().assets.filter((asset) => asset.kind === "crypto");
+test("large recent moves are not calm while high baseline volatility alone is not elevated", () => {
+  const nova = assetWith({ baselineVolatility: 0.22, lastTickChangePct: -0.2, momentum: -0.12 });
+  const pulse = createSeedMarket().assets.find((asset) => asset.id === "pulse");
+  assert.ok(pulse);
 
-  assert.ok(crypto.length > 0);
-  assert.ok(crypto.every((asset) => classifyMarketMovement(asset) !== "calm"));
+  assert.equal(classifyMarketMovement(nova), "active");
+  assert.equal(classifyMarketMovement({ ...pulse, lastTickChangePct: 0, momentum: 0 }), "calm");
+  assert.equal(classifyMarketMovement({ ...pulse, lastTickChangePct: 0.2, momentum: 0.08 }), "active");
+});
+
+test("an active event moves an otherwise quiet asset out of calm", () => {
+  const quietNova = assetWith({ lastTickChangePct: 0, momentum: 0 });
+
+  assert.equal(
+    calculateMarketRead(quietNova, { simulated: 0, player: 0 }, 0.41).movement,
+    "active"
+  );
 });
 
 test("market pressure language stays coarse across neutral, slight, and strong signals", () => {
