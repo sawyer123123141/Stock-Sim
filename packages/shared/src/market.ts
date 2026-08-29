@@ -70,6 +70,25 @@ export interface MarketEventTarget {
   value?: string;
 }
 
+/** Balance classification for internal event importance, never a fixed return tier. */
+export type EventSignificance = "minor" | "normal" | "major" | "transformative";
+
+/**
+ * A sparse report of business information revealed by a stock event. Values
+ * are normalized from -1 (materially weaker) through 0 (neutral/mixed) to 1
+ * (materially stronger); they describe a reported outcome, not a new
+ * fundamental.
+ */
+export interface StockEventOutcome {
+  growth?: number;
+  profitability?: number;
+  demand?: number;
+  execution?: number;
+  financialHealth?: number;
+  competitivePosition?: number;
+  reputation?: number;
+}
+
 export interface MarketEvent {
   id: string;
   title: string;
@@ -79,6 +98,10 @@ export interface MarketEvent {
   reactionStartsAt: number;
   expiresAt: number;
   target: MarketEventTarget;
+  outcome?: StockEventOutcome;
+  expectedOutcome?: StockEventOutcome;
+  surprise?: number;
+  significance?: EventSignificance;
 }
 
 export interface MarketPressure {

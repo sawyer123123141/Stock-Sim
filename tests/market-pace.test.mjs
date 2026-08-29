@@ -83,7 +83,7 @@ test("quiet stocks have a game-speed hour of movement without unsafe extremes", 
 });
 
 test("a targeted existing event creates a meaningfully stronger 10-minute move than quiet conditions", () => {
-  const event = createMarketEvent({ id: "event-1", publishedAt: 0, rng: () => 0.01 });
+  const event = createMarketEvent({ id: "event-1", publishedAt: 0, rng: () => 0.01, assets: createSeedMarket().assets });
   const quiet = distribution("nova", 10 * 60 * 1_000);
   const withEvent = distribution("nova", 10 * 60 * 1_000, event);
   const eventAdvantage = withEvent.map((result, index) => result.signedPct - quiet[index].signedPct);
@@ -92,8 +92,8 @@ test("a targeted existing event creates a meaningfully stronger 10-minute move t
 });
 
 test("existing positive and negative events retain opposing price direction", () => {
-  const positiveEvent = createMarketEvent({ id: "positive-event", publishedAt: 0, rng: () => 0.01 });
-  const negativeEvent = createMarketEvent({ id: "negative-event", publishedAt: 0, rng: () => 0.11 });
+  const positiveEvent = createMarketEvent({ id: "positive-event", publishedAt: 0, rng: () => 0.01, assets: createSeedMarket().assets });
+  const negativeEvent = createMarketEvent({ id: "negative-event", publishedAt: 0, rng: () => 0.11, assets: createSeedMarket().assets });
   const quiet = distribution("nova", 10 * 60 * 1_000);
   const positive = distribution("nova", 10 * 60 * 1_000, positiveEvent);
   const negative = distribution("nova", 10 * 60 * 1_000, negativeEvent);
@@ -112,7 +112,7 @@ test("crypto remains more volatile than stocks across the same deterministic hou
 });
 
 test("market-pace measurements replay exactly for the same seed and event path", () => {
-  const event = createMarketEvent({ id: "event-1", publishedAt: 0, rng: () => 0.01 });
+  const event = createMarketEvent({ id: "event-1", publishedAt: 0, rng: () => 0.01, assets: createSeedMarket().assets });
 
   assert.deepEqual(
     simulate(42, "nova", 10 * 60 * 1_000, event),
