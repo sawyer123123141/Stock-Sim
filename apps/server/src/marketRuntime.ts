@@ -5,6 +5,7 @@ import {
   combinedEventEffect,
   FIRST_EVENT_DELAY_MS,
   calculateMarketRead,
+  applyStockEventConsequences,
   createMarketEvent,
   createSeedMarket,
   createStatefulSeededRng,
@@ -45,6 +46,8 @@ export interface MarketRuntimeRecoveryState {
   firstEventDelayMs: number;
   eventIntervalMs: number;
   playerPressure: Record<string, TradeImpulse[]>;
+  /** Events whose versioned consequences were applied at canonical publishedAt. */
+  appliedEventIds: string[];
 }
 
 export interface MarketRuntime {
@@ -82,6 +85,7 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
   const eventIntervalMs = recovery?.eventIntervalMs ?? options.eventIntervalMs ?? EVENT_CADENCE_MS;
   let nextEventAtMs = recovery?.nextEventAtMs ?? lastAdvancedAtMs + firstEventDelayMs;
   let eventCount = recovery?.eventCount ?? 0;
+  const appliedEventIds = new Set(recovery?.appliedEventIds ?? []);
   let cancelScheduledTick: (() => void) | undefined;
   const listeners = new Set<MarketSnapshotListener>();
   const playerPressure = createPlayerPressureBook(recovery?.playerPressure);
@@ -111,21 +115,39 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
       throw new RangeError("Market time must be a finite millisecond timestamp.");
     }
 
-    if (nowMs <= lastAdvancedAtMs) {
+    if (nowMs < lastAdvancedAtMs) {
       return snapshot();
     }
 
+    function applyConsequences(event: ReturnType<typeof createMarketEvent>): void {
+      if (event.consequenceVersion !== 1 || appliedEventIds.has(event.id)) return;
+      state = applyStockEventConsequences(state, event);
+      appliedEventIds.add(event.id);
+    }
+
+    for (const event of [...state.activeEvents]
+      .filter((event) => event.publishedAt <= nowMs)
+      .sort((left, right) => left.publishedAt - right.publishedAt || left.id.localeCompare(right.id))) {
+      applyConsequences(event);
+    }
+
+    if (nowMs === lastAdvancedAtMs) return snapshot();
+
     while (nextEventAtMs <= nowMs) {
       eventCount += 1;
+      // Snapshot the prior expectations, then apply the newly public event at
+      // its canonical publication time before creating any later event.
+      const event = createMarketEvent({
+        id: `event-${eventCount}`,
+        publishedAt: nextEventAtMs,
+        rng,
+        assets: state.assets
+      });
       state = {
         ...state,
-        activeEvents: [...state.activeEvents, createMarketEvent({
-          id: `event-${eventCount}`,
-          publishedAt: nextEventAtMs,
-          rng,
-          assets: state.assets
-        })]
+        activeEvents: [...state.activeEvents, event]
       };
+      applyConsequences(event);
       nextEventAtMs += eventIntervalMs;
     }
 
@@ -202,7 +224,8 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
       tickIntervalMs,
       firstEventDelayMs,
       eventIntervalMs,
-      playerPressure: playerPressure.recoveryState()
+      playerPressure: playerPressure.recoveryState(),
+      appliedEventIds: [...appliedEventIds]
     };
   }
 
