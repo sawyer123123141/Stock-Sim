@@ -8,6 +8,8 @@ const STOCK_REFERENCE_TICK_MS = 60_000;
 const CRYPTO_REFERENCE_TICK_MS = 5_000;
 const STOCK_MAX_TICK_RETURN = 0.01;
 const CRYPTO_MAX_TICK_RETURN = 0.03;
+const STOCK_NOISE_SCALE = 0.009;
+const STOCK_EVENT_SCALE = 0.006;
 
 function contribution(
   code: MovementContribution["code"],
@@ -28,7 +30,7 @@ function scales(asset: AssetState, deltaMs: number): { linear: number; noise: nu
 function stockContributions(asset: AssetState, context: TickContext, rng: RandomSource): MovementContribution[] {
   const demand = calculateDemandPressure(context.demand);
   const time = scales(asset, context.deltaMs);
-  const noise = (rng() * 2 - 1) * asset.baselineVolatility * 0.004 * time.noise;
+  const noise = (rng() * 2 - 1) * asset.baselineVolatility * STOCK_NOISE_SCALE * time.noise;
   const company = ((asset.companyStrength ?? 0) - 0.25) * 0.00004 * time.linear;
 
   return [
@@ -37,7 +39,7 @@ function stockContributions(asset: AssetState, context: TickContext, rng: Random
     contribution("sentiment", "Public sentiment", asset.sentiment * 0.00003 * time.linear, "Investors are feeling more optimistic about this company.", "Investors are feeling less confident about this company."),
     contribution("momentum", "Recent momentum", asset.momentum * 0.00004 * time.linear, "Recent gains are attracting more attention.", "Recent losses are making traders more cautious."),
     contribution("demand", "Buying pressure", demand * 0.0004 * time.linear, "Buying interest is stronger than selling pressure.", "Selling pressure is stronger than buying interest."),
-    contribution("news", "News and events", context.eventEffect * 0.0012 * time.linear, "Positive news is attracting investors.", "Negative news is pushing investors away."),
+    contribution("news", "News and events", context.eventEffect * STOCK_EVENT_SCALE * time.linear, "Positive news is attracting investors.", "Negative news is pushing investors away."),
     contribution("noise", "Normal market movement", noise, "Normal trading activity is giving the price a small lift.", "Normal trading activity is nudging the price lower.")
   ];
 }
