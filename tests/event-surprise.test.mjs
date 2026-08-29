@@ -162,7 +162,15 @@ test("structured active events survive recovery while legacy numeric events stay
   const recovered = createMarketRuntime({ recoveryState: recovery });
   assert.deepEqual(recovered.recoveryState(), recovery);
 
-  const { outcome, expectedOutcome, surprise, significance, ...legacyBase } = structured;
+  const {
+    outcome,
+    expectedOutcome,
+    surprise,
+    significance,
+    fundamentalImpact,
+    consequenceVersion,
+    ...legacyBase
+  } = structured;
   const legacy = {
     ...legacyBase,
     id: "legacy-event",
@@ -188,7 +196,15 @@ test("public market snapshots keep stock event business truth private", () => {
   });
   const publicEvent = toMarketSnapshot({ ...market, activeEvents: [event] }, 50_000).events[0];
   assert.ok(publicEvent);
-  for (const field of ["effect", "outcome", "expectedOutcome", "surprise", "significance"]) {
+  for (const field of [
+    "effect",
+    "outcome",
+    "expectedOutcome",
+    "surprise",
+    "significance",
+    "fundamentalImpact",
+    "consequenceVersion"
+  ]) {
     assert.equal(field in publicEvent, false, `${field} remains server-only`);
   }
 });

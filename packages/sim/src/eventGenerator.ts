@@ -3,7 +3,8 @@ import type {
   EventSignificance,
   MarketEvent,
   MarketEventTarget,
-  StockEventOutcome
+  StockEventOutcome,
+  StockFundamentals
 } from "../../shared/src/index.js";
 import { clamp } from "./math.js";
 import type { RandomSource } from "./rng.js";
@@ -24,6 +25,7 @@ interface MarketEventTemplate {
   effect?: number;
   outcome?: StockEventOutcome;
   significance?: EventSignificance;
+  fundamentalImpact?: Partial<StockFundamentals>;
   reactsQuickly?: boolean;
 }
 
@@ -34,6 +36,7 @@ const EVENT_CATALOG: readonly MarketEventTemplate[] = [
     summary: "Early showroom interest is strong, but production follow-through is still unknown.",
     outcome: { demand: 1, growth: 0.7, execution: 0.45 },
     significance: "normal",
+    fundamentalImpact: { growth: 0.08, reputation: 0.04 },
     target: { kind: "asset", value: "nova" }
   },
   {
@@ -42,6 +45,7 @@ const EVENT_CATALOG: readonly MarketEventTemplate[] = [
     summary: "The company is checking a production issue; investors are still waiting for the full impact.",
     outcome: { execution: -0.8, profitability: -0.45 },
     significance: "major",
+    fundamentalImpact: { profitability: -0.08, reputation: -0.03 },
     target: { kind: "asset", value: "nova" }
   },
   {
@@ -50,6 +54,7 @@ const EVENT_CATALOG: readonly MarketEventTemplate[] = [
     summary: "The demonstration has attracted attention, though commercial scale remains unproven.",
     outcome: { growth: 0.9, execution: 0.4, competitivePosition: 0.85 },
     significance: "major",
+    fundamentalImpact: { growth: 0.1, competitivePosition: 0.16, reputation: 0.06 },
     target: { kind: "asset", value: "luma" }
   },
   {
@@ -58,6 +63,7 @@ const EVENT_CATALOG: readonly MarketEventTemplate[] = [
     summary: "The revised timeline raises questions, but the company says its longer-term work continues.",
     outcome: { growth: 0.45, execution: -0.5, reputation: -0.2 },
     significance: "normal",
+    fundamentalImpact: { growth: -0.04, reputation: -0.05 },
     target: { kind: "asset", value: "luma" }
   },
   {
@@ -66,6 +72,7 @@ const EVENT_CATALOG: readonly MarketEventTemplate[] = [
     summary: "The deal could support demand over time, although its financial contribution is not yet clear.",
     outcome: { demand: 0.5, profitability: 0.5, execution: 0.35 },
     significance: "normal",
+    fundamentalImpact: { growth: 0.03, profitability: 0.06, reputation: 0.02 },
     target: { kind: "asset", value: "hgrid" }
   },
   {
@@ -222,6 +229,8 @@ export function createMarketEvent(options: CreateMarketEventOptions): MarketEven
     outcome,
     expectedOutcome,
     surprise,
-    significance: template.significance
+    significance: template.significance,
+    ...(template.fundamentalImpact ? { fundamentalImpact: template.fundamentalImpact } : {}),
+    consequenceVersion: 1
   };
 }

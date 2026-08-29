@@ -102,6 +102,13 @@ export interface MarketEvent {
   expectedOutcome?: StockEventOutcome;
   surprise?: number;
   significance?: EventSignificance;
+  /**
+   * Sparse, normalized deltas to persistent company reality. This remains
+   * server-only and is intentionally separate from the reported outcome.
+   */
+  fundamentalImpact?: Partial<StockFundamentals>;
+  /** Internal compatibility marker for event consequence semantics. */
+  consequenceVersion?: 1;
 }
 
 export interface MarketPressure {
