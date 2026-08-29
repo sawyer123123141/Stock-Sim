@@ -79,6 +79,48 @@
   box-shadow: inset 0 0 0 1px rgba(255, 116, 140, 0.2);
 }
 
+.sell-ownership {
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+  padding: 11px;
+  border: 1px solid rgba(255, 116, 140, 0.16);
+  border-radius: 11px;
+  background: rgba(255, 116, 140, 0.05);
+}
+
+.sell-ownership strong {
+  color: #f7dbe1;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.sell-quick-fills {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.sell-quick-fills button {
+  min-height: 32px;
+  border: 1px solid rgba(255, 116, 140, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 116, 140, 0.08);
+  color: #f7dbe1;
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sell-quick-fills button:not(:disabled):hover {
+  background: rgba(255, 116, 140, 0.15);
+}
+
+.sell-quick-fills button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
 .quantity-field {
   display: grid;
   gap: 7px;
