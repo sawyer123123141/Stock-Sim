@@ -5,13 +5,14 @@ function asset(input: Omit<AssetState, "lastTickChangePct" | "reasons">): AssetS
   return { ...input, lastTickChangePct: 0, reasons: [] };
 }
 
-function stockAsset(input: Omit<AssetState, "lastTickChangePct" | "reasons" | "fundamentals" | "expectations">): AssetState {
+function stockAsset(input: Omit<AssetState, "lastTickChangePct" | "reasons" | "fundamentals" | "expectations" | "pricingState">): AssetState {
   const profile = STOCK_COMPANY_PROFILES[input.id];
   if (!profile) throw new RangeError(`Missing stock company profile for ${input.id}.`);
   return asset({
     ...input,
     fundamentals: { ...profile.fundamentals },
-    expectations: { ...profile.expectations }
+    expectations: { ...profile.expectations },
+    pricingState: { pricedExpectations: { ...profile.expectations } }
   });
 }
 

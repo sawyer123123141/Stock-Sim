@@ -73,10 +73,13 @@ test("a strong simulated lean stays directional despite bounded player pressure"
   market.assets = market.assets.map((asset) => asset.id === "nova"
     ? {
       ...asset,
-      companyStrength: 0,
       sectorTrend: -1,
       sentiment: -1,
-      momentum: -1
+      momentum: -1,
+      expectations: { growth: -0.5, profitability: -0.5, demand: -0.5, execution: -0.5 },
+      pricingState: {
+        pricedExpectations: { growth: 0.5, profitability: 0.5, demand: 0.5, execution: 0.5 }
+      }
     }
     : asset);
   const runtime = createMarketRuntime({ initialState: market, seed: 6, startedAtMs: 1_000 });

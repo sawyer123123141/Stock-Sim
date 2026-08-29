@@ -9,4 +9,5 @@ export * from "./investors.js";
 export * from "./market.js";
 export * from "./marketRead.js";
 export * from "./rng.js";
+export * from "./stockPricing.js";
 export * from "./tick.js";
