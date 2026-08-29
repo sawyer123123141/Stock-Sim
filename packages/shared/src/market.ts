@@ -47,6 +47,14 @@ export interface MarketExpectations {
   execution: number;
 }
 
+/**
+ * The portion of current market expectations already absorbed into stock
+ * pricing behavior. This remains server-only simulation state.
+ */
+export interface StockPricingState {
+  pricedExpectations: MarketExpectations;
+}
+
 export interface AssetState {
   id: string;
   symbol: string;
@@ -62,6 +70,7 @@ export interface AssetState {
   companyStrength?: number;
   fundamentals?: StockFundamentals;
   expectations?: MarketExpectations;
+  pricingState?: StockPricingState;
   reasons: MovementReason[];
 }
 

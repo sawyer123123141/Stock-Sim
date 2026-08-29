@@ -3,6 +3,7 @@ import { calculateDemandPressure } from "./demand.js";
 import { explainMovement } from "./explain.js";
 import { clamp, round } from "./math.js";
 import type { RandomSource } from "./rng.js";
+import { absorbStockPricingState } from "./stockPricing.js";
 
 const STOCK_REFERENCE_TICK_MS = 60_000;
 const CRYPTO_REFERENCE_TICK_MS = 5_000;
@@ -31,10 +32,7 @@ function stockContributions(asset: AssetState, context: TickContext, rng: Random
   const demand = calculateDemandPressure(context.demand);
   const time = scales(asset, context.deltaMs);
   const noise = (rng() * 2 - 1) * asset.baselineVolatility * STOCK_NOISE_SCALE * time.noise;
-  const company = ((asset.companyStrength ?? 0) - 0.25) * 0.00004 * time.linear;
-
   return [
-    contribution("company", "Company strength", company, "The company looks financially strong, which is attracting investors.", "Concerns about the company itself are weighing on the price."),
     contribution("sector", "Sector trend", asset.sectorTrend * 0.00004 * time.linear, "The wider sector is performing well and helping this stock.", "The wider sector is weak and pulling this stock down."),
     contribution("sentiment", "Public sentiment", asset.sentiment * 0.00003 * time.linear, "Investors are feeling more optimistic about this company.", "Investors are feeling less confident about this company."),
     contribution("momentum", "Recent momentum", asset.momentum * 0.00004 * time.linear, "Recent gains are attracting more attention.", "Recent losses are making traders more cautious."),
@@ -76,6 +74,9 @@ export function tickAsset(asset: AssetState, context: TickContext, rng: RandomSo
     -1,
     1
   );
+  const pricingState = asset.kind === "stock" && asset.expectations && asset.pricingState
+    ? absorbStockPricingState(asset.pricingState, asset.expectations, context.deltaMs)
+    : asset.pricingState;
 
   return {
     returnFraction,
@@ -85,7 +86,8 @@ export function tickAsset(asset: AssetState, context: TickContext, rng: RandomSo
       price: nextPrice,
       lastTickChangePct: round(returnFraction * 100, 4),
       momentum: round(nextMomentum, 6),
-      reasons: explainMovement(contributions)
+      reasons: explainMovement(contributions),
+      ...(pricingState ? { pricingState } : {})
     }
   };
 }

@@ -2,8 +2,10 @@ import type {
   AssetState,
   MarketExpectations,
   MarketState,
-  StockFundamentals
+  StockFundamentals,
+  StockPricingState
 } from "../../shared/src/index.js";
+import { normalizeStockPricingState } from "./stockPricing.js";
 
 export interface StockCompanyProfile {
   fundamentals: StockFundamentals;
@@ -87,6 +89,13 @@ function sameExpectations(left: MarketExpectations | undefined, right: MarketExp
     && left.execution === right.execution;
 }
 
+function samePricingState(left: StockPricingState | undefined, right: StockPricingState): boolean {
+  return left?.pricedExpectations.growth === right.pricedExpectations.growth
+    && left.pricedExpectations.profitability === right.pricedExpectations.profitability
+    && left.pricedExpectations.demand === right.pricedExpectations.demand
+    && left.pricedExpectations.execution === right.pricedExpectations.execution;
+}
+
 function profileFor(assetId: string): StockCompanyProfile {
   return STOCK_COMPANY_PROFILES[assetId] ?? {
     fundamentals: NEUTRAL_FUNDAMENTALS,
@@ -100,10 +109,15 @@ function normalizeStockCompanyReality(asset: AssetState): AssetState {
   const profile = profileFor(asset.id);
   const fundamentals = normalizeFundamentals(asset.fundamentals, profile.fundamentals);
   const expectations = normalizeExpectations(asset.expectations, profile.expectations);
-  if (sameFundamentals(asset.fundamentals, fundamentals) && sameExpectations(asset.expectations, expectations)) {
+  const pricingState = normalizeStockPricingState(asset.pricingState, expectations);
+  if (
+    sameFundamentals(asset.fundamentals, fundamentals)
+    && sameExpectations(asset.expectations, expectations)
+    && samePricingState(asset.pricingState, pricingState)
+  ) {
     return asset;
   }
-  return { ...asset, fundamentals, expectations };
+  return { ...asset, fundamentals, expectations, pricingState };
 }
 
 /**
