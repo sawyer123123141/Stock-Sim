@@ -3,9 +3,10 @@ import { formatMoney } from "../format";
 export interface MarketHeaderProps {
   totalValue: number;
   cash: number;
+  ownedAssetCount: number;
 }
 
-export function MarketHeader({ totalValue, cash }: MarketHeaderProps) {
+export function MarketHeader({ totalValue, cash, ownedAssetCount }: MarketHeaderProps) {
   return (
     <header className="market-header">
       <div className="brand-lockup" aria-label="Market Era">
@@ -24,6 +25,10 @@ export function MarketHeader({ totalValue, cash }: MarketHeaderProps) {
         <div className="account-stat">
           <span>Portfolio</span>
           <strong>{formatMoney(totalValue)}</strong>
+        </div>
+        <div className="objective-chip" aria-label="Next objective">
+          <span>NEXT OBJECTIVE</span>
+          <strong>{ownedAssetCount < 2 ? `Own 2 assets · ${ownedAssetCount} / 2` : "First steps complete"}</strong>
         </div>
         <div className="account-stat">
           <span>Cash</span>

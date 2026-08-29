@@ -1,6 +1,7 @@
 export type AssetKind = "stock" | "crypto";
 export type Direction = "up" | "down";
 export type MarketRisk = "low" | "medium" | "high";
+export type MarketMovement = "calm" | "active" | "elevated";
 export type MarketPressureOutlook =
   | "down"
   | "slightly-down"
@@ -175,12 +176,30 @@ export interface AssetSnapshot {
   price: number;
   lastTickChangePct: number;
   marketRead: MarketReadSnapshot;
-  reasons: MovementReason[];
+  research?: StockResearchSnapshot;
+  reasons: MovementReasonSnapshot[];
 }
 
 export interface MarketReadSnapshot {
-  risk: MarketRisk;
+  movement: MarketMovement;
   pressure: MarketPressureOutlook;
+}
+
+export type CompanyResearchLevel = "challenged" | "mixed" | "solid" | "strong";
+export type ExpectationResearchLevel = "cautious" | "balanced" | "constructive" | "high";
+export type MovementReasonStrength = "small" | "moderate" | "strong";
+
+export interface StockResearchSnapshot {
+  company: Record<keyof StockFundamentals, CompanyResearchLevel>;
+  expectations: Record<keyof MarketExpectations, ExpectationResearchLevel>;
+}
+
+export interface MovementReasonSnapshot {
+  code: ReasonCode;
+  label: string;
+  direction: Direction;
+  strength: MovementReasonStrength;
+  summary: string;
 }
 
 export interface MarketEventSnapshot {

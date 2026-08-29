@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   classifyMarketPressure,
+  classifyMarketMovement,
   classifyMarketRisk,
   createSeedMarket
 } from "../dist/packages/sim/src/index.js";
@@ -13,20 +14,20 @@ function assetWith(overrides) {
   return { ...nova, ...overrides };
 }
 
-test("market risk classification is deterministic and follows baseline volatility", () => {
+test("market movement classification is deterministic and follows baseline volatility", () => {
   const calmerStock = assetWith({ baselineVolatility: 0.22, kind: "stock" });
   const moreVolatileAsset = assetWith({ baselineVolatility: 0.82, kind: "crypto" });
 
-  assert.equal(classifyMarketRisk(calmerStock), "low");
-  assert.equal(classifyMarketRisk(calmerStock), "low");
-  assert.equal(classifyMarketRisk(moreVolatileAsset), "high");
+  assert.equal(classifyMarketMovement(calmerStock), "calm");
+  assert.equal(classifyMarketMovement(calmerStock), "calm");
+  assert.equal(classifyMarketMovement(moreVolatileAsset), "elevated");
 });
 
-test("normal seed crypto does not appear low risk", () => {
+test("normal seed crypto does not appear calm", () => {
   const crypto = createSeedMarket().assets.filter((asset) => asset.kind === "crypto");
 
   assert.ok(crypto.length > 0);
-  assert.ok(crypto.every((asset) => classifyMarketRisk(asset) !== "low"));
+  assert.ok(crypto.every((asset) => classifyMarketMovement(asset) !== "calm"));
 });
 
 test("market pressure language stays coarse across neutral, slight, and strong signals", () => {
@@ -54,7 +55,7 @@ test("the server snapshot derives qualitative market reads from combined pressur
 
   const beforeTrade = runtime.snapshot().assets.find((asset) => asset.id === "nova");
   assert.ok(beforeTrade);
-  assert.deepEqual(beforeTrade.marketRead, { risk: "low", pressure: "balanced" });
+  assert.deepEqual(beforeTrade.marketRead, { movement: "calm", pressure: "balanced" });
 
   for (let index = 0; index < 100; index += 1) {
     runtime.recordPlayerTrade("nova", "buy", 10_000, 1_000);
@@ -62,7 +63,7 @@ test("the server snapshot derives qualitative market reads from combined pressur
   const afterTrade = runtime.snapshot().assets.find((asset) => asset.id === "nova");
   assert.ok(afterTrade);
   assert.equal(afterTrade.marketRead.pressure, "slightly-up");
-  assert.deepEqual(Object.keys(afterTrade.marketRead).sort(), ["pressure", "risk"]);
+  assert.deepEqual(Object.keys(afterTrade.marketRead).sort(), ["movement", "pressure"]);
   assert.equal("simulated" in afterTrade.marketRead, false);
   assert.equal("player" in afterTrade.marketRead, false);
   assert.equal("eventEffect" in afterTrade.marketRead, false);

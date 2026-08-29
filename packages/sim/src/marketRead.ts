@@ -2,6 +2,7 @@ import type {
   AssetState,
   MarketPressure,
   MarketPressureOutlook,
+  MarketMovement,
   MarketReadSnapshot,
   MarketRisk
 } from "../../shared/src/index.js";
@@ -18,6 +19,12 @@ export function classifyMarketRisk(asset: AssetState): MarketRisk {
   return "high";
 }
 
+export function classifyMarketMovement(asset: AssetState): MarketMovement {
+  if (asset.baselineVolatility < LOW_RISK_MAX_VOLATILITY) return "calm";
+  if (asset.baselineVolatility < MEDIUM_RISK_MAX_VOLATILITY) return "active";
+  return "elevated";
+}
+
 export function classifyMarketPressure(pressure: number): MarketPressureOutlook {
   if (pressure <= -OUTER_PRESSURE_MIN) return "down";
   if (pressure < -BALANCED_PRESSURE_MAX) return "slightly-down";
@@ -31,7 +38,7 @@ export function calculateMarketRead(
   pressure: MarketPressure
 ): MarketReadSnapshot {
   return {
-    risk: classifyMarketRisk(asset),
+    movement: classifyMarketMovement(asset),
     pressure: classifyMarketPressure(calculateDemandPressure(pressure))
   };
 }

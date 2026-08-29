@@ -121,7 +121,7 @@ test("stage 1 trade flow is one whole-unit Buy Sell path without advanced orders
   assert.doesNotMatch(combined, /Limit Order|Stop Loss|Take Profit|Margin|Leverage/);
 });
 
-test("stage 1 ends with one movement story, one objective, and responsive accessible polish", async () => {
+test("stage 1 keeps one movement story, header objective access, and responsive accessible polish", async () => {
   const [app, story, objective, styles, tradeStyles, insightStyles, readme] = await Promise.all([
     text("apps/web/src/App.tsx"),
     text("apps/web/src/components/MovementStory.tsx"),
@@ -133,9 +133,11 @@ test("stage 1 ends with one movement story, one objective, and responsive access
   ]);
 
   assert.equal((app.match(/<MovementStory/g) ?? []).length, 1);
-  assert.equal((app.match(/<NextObjective/g) ?? []).length, 1);
+  assert.equal((app.match(/<NextObjective/g) ?? []).length, 0);
+  assert.match(app, /<MarketHeader[^>]*ownedAssetCount/);
   assert.match(story, /reasons\[0\]/);
   assert.match(story, /strongestReason\?\.direction/);
+  assert.match(story, /aria-expanded/);
   assert.match(story, /No major driver is dominating this move right now\./);
   assert.match(objective, /Make your first investment/);
   assert.match(objective, /Own 2 different assets/);
