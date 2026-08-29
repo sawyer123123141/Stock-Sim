@@ -5,7 +5,13 @@ import type {
   TradeSide
 } from "../../../../packages/shared/src/index";
 import { formatMoney } from "../format";
-import { finalSaleTicketReset } from "../tradeTicketState";
+import {
+  finalSaleTicketReset,
+  sellQuickFillQuantity,
+  type SellQuickFillShortcut
+} from "../tradeTicketState";
+
+const SELL_QUICK_FILL_SHORTCUTS: SellQuickFillShortcut[] = [25, 50, 75, "all"];
 
 export interface TradeTicketProps {
   asset: AssetSnapshot;
@@ -77,6 +83,26 @@ export function TradeTicket({
           onClick={() => setSide("sell")}
         >Sell</button>
       </div>
+
+      {side === "sell" && (
+        <div className="sell-ownership">
+          <strong>You own {ownedQuantity} {asset.kind === "stock" ? "shares" : "units"}</strong>
+          <div className="sell-quick-fills" role="group" aria-label="Sell quantity shortcuts">
+            {SELL_QUICK_FILL_SHORTCUTS.map((shortcut) => {
+              const quickFillQuantity = sellQuickFillQuantity(ownedQuantity, shortcut);
+              const label = shortcut === "all" ? "ALL" : `${shortcut}%`;
+              return (
+                <button
+                  key={shortcut}
+                  type="button"
+                  disabled={quickFillQuantity === null}
+                  onClick={() => quickFillQuantity !== null && setQuantityText(String(quickFillQuantity))}
+                >{label}</button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <label className="quantity-field">
         <span>Quantity</span>
