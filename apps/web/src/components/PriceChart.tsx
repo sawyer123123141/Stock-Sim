@@ -1,10 +1,13 @@
-import type { AssetSnapshot } from "../../../../packages/shared/src/index";
+import { useState } from "react";
+import type { AssetSnapshot, MarketStoryUpdateSnapshot } from "../../../../packages/shared/src/index";
 import { describeMarketChange, formatMoney, marketChangeTone } from "../format";
+import { selectChartSamplePositions, selectChartStoryMarkers } from "../priceChartMarkers";
 import type { PriceSample } from "../useMarketSession";
 
 export interface PriceChartProps {
   asset: AssetSnapshot;
   samples: PriceSample[];
+  updates: MarketStoryUpdateSnapshot[];
 }
 
 const WIDTH = 800;
@@ -12,7 +15,8 @@ const HEIGHT = 360;
 const PAD_X = 28;
 const PAD_Y = 32;
 
-export function PriceChart({ asset, samples }: PriceChartProps) {
+export function PriceChart({ asset, samples, updates }: PriceChartProps) {
+  const [activeMarkerId, setActiveMarkerId] = useState<string | null>(null);
   const prices = samples.length > 0 ? samples.map((point) => point.price) : [asset.price];
   const rawMin = Math.min(...prices);
   const rawMax = Math.max(...prices);
@@ -24,17 +28,22 @@ export function PriceChart({ asset, samples }: PriceChartProps) {
   const drawableWidth = WIDTH - PAD_X * 2;
   const drawableHeight = HEIGHT - PAD_Y * 2;
   const hasLine = samples.length >= 2;
+  const samplePositions = selectChartSamplePositions(samples);
+  const markers = selectChartStoryMarkers(samples, updates);
+  const activeMarker = markers.find((marker) => marker.update.id === activeMarkerId) ?? null;
 
   const path = hasLine
     ? samples.map((point, index) => {
-      const x = PAD_X + (index / Math.max(samples.length - 1, 1)) * drawableWidth;
+      const x = PAD_X + (samplePositions[index]?.x ?? 0) * drawableWidth;
       const y = PAD_Y + ((max - point.price) / range) * drawableHeight;
       return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
     }).join(" ")
     : "";
 
   const latest = samples[samples.length - 1];
-  const latestX = hasLine ? WIDTH - PAD_X : WIDTH / 2;
+  const latestX = hasLine
+    ? PAD_X + (samplePositions.at(-1)?.x ?? 1) * drawableWidth
+    : WIDTH / 2;
   const latestY = latest
     ? PAD_Y + ((max - latest.price) / range) * drawableHeight
     : HEIGHT / 2;
@@ -79,7 +88,39 @@ export function PriceChart({ asset, samples }: PriceChartProps) {
             vectorEffect="non-scaling-stroke"
           />
         )}
+        {markers.map((marker) => {
+          const x = PAD_X + marker.x * drawableWidth;
+          const markerLabel = `Public information: ${marker.update.title}. Published ${marker.update.publishedAt}.`;
+          return (
+            <g
+              key={marker.update.id}
+              className="chart-story-marker"
+              role="button"
+              tabIndex={0}
+              aria-label={markerLabel}
+              aria-pressed={activeMarkerId === marker.update.id}
+              onMouseEnter={() => setActiveMarkerId(marker.update.id)}
+              onFocus={() => setActiveMarkerId(marker.update.id)}
+              onClick={() => setActiveMarkerId(marker.update.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setActiveMarkerId(marker.update.id);
+                }
+              }}
+            >
+              <title>{markerLabel}</title>
+              <circle cx={x} cy={PAD_Y + 10} r="4" vectorEffect="non-scaling-stroke" />
+            </g>
+          );
+        })}
       </svg>
+      {activeMarker && (
+        <figcaption className="chart-marker-detail" role="status">
+          <strong>{activeMarker.update.title}</strong>
+          <span>{activeMarker.update.publishedAt}</span>
+        </figcaption>
+      )}
       <div className="chart-range" aria-hidden="true">
         <span>{formatMoney(max)}</span>
         <span>{formatMoney(min)}</span>

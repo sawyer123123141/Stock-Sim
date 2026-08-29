@@ -120,6 +120,40 @@ export interface MarketEvent {
   consequenceVersion?: 1;
 }
 
+export type MarketStoryStatus = "developing" | "resolved";
+export type MarketStoryUpdateState = "pending" | "published";
+
+/**
+ * Server-only planned or published information within a market story. Pending
+ * updates may contain future truth, but their compatibility reaction is only
+ * resolved when the runtime publishes them.
+ */
+export interface MarketStoryUpdate {
+  id: string;
+  title: string;
+  summary: string;
+  publishedAt: number;
+  state: MarketStoryUpdateState;
+  outcome?: StockEventOutcome;
+  expectedOutcome?: StockEventOutcome;
+  surprise?: number;
+  effect?: number;
+  /** Private direct-reaction input for numeric-only legacy-compatible events. */
+  effectHint?: number;
+  significance?: EventSignificance;
+  fundamentalImpact?: Partial<StockFundamentals>;
+  reactsQuickly?: boolean;
+}
+
+/** Server-only deterministic plan and published history for related updates. */
+export interface MarketStory {
+  id: string;
+  title: string;
+  target: MarketEventTarget;
+  status: MarketStoryStatus;
+  updates: MarketStoryUpdate[];
+}
+
 export interface MarketPressure {
   simulated: number;
   player: number;
@@ -129,6 +163,7 @@ export interface MarketState {
   sequence: number;
   assets: AssetState[];
   activeEvents: MarketEvent[];
+  stories: MarketStory[];
 }
 
 export interface AssetSnapshot {
@@ -158,11 +193,27 @@ export interface MarketEventSnapshot {
   expiresAt: string;
 }
 
+export interface MarketStoryUpdateSnapshot {
+  id: string;
+  title: string;
+  summary: string;
+  publishedAt: string;
+}
+
+export interface MarketStorySnapshot {
+  id: string;
+  title: string;
+  target: MarketEventTarget;
+  status: MarketStoryStatus;
+  updates: MarketStoryUpdateSnapshot[];
+}
+
 export interface MarketSnapshot {
   sequence: number;
   generatedAt: string;
   assets: AssetSnapshot[];
   events: MarketEventSnapshot[];
+  stories: MarketStorySnapshot[];
 }
 
 export interface MovementContribution {

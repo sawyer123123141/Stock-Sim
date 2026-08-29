@@ -14,7 +14,7 @@ import {
   marketChangeTone
 } from "./format";
 import { useMarketSession } from "./useMarketSession";
-import { selectRelevantMarketEvent } from "./marketEventSelection";
+import { selectRelevantMarketStories, selectRelevantMarketStory } from "./marketEventSelection";
 
 export function App() {
   const session = useMarketSession();
@@ -49,7 +49,9 @@ export function App() {
   const marketTone = marketChangeTone(asset.lastTickChangePct);
   const marketChange = describeMarketChange(asset.lastTickChangePct);
   const lastFill = session.lastTrade?.assetId === asset.id ? session.lastTrade : null;
-  const selectedEvent = selectRelevantMarketEvent(asset, session.market.events);
+  const selectedStory = selectRelevantMarketStory(asset, session.market.stories);
+  const relevantStoryUpdates = selectRelevantMarketStories(asset, session.market.stories)
+    .flatMap((story) => story.updates);
 
   return (
     <main className="app-shell">
@@ -99,7 +101,7 @@ export function App() {
             <span>Session data only</span>
           </div>
 
-          <PriceChart asset={asset} samples={session.selectedHistory} />
+          <PriceChart asset={asset} samples={session.selectedHistory} updates={relevantStoryUpdates} />
         </section>
 
         <aside className="trade-column" aria-label={`${asset.symbol} trade and position`}>
@@ -123,9 +125,9 @@ export function App() {
         </aside>
       </div>
 
-      <section className={`insight-strip${selectedEvent ? " has-news" : ""}`} aria-label="Market guidance">
-        {selectedEvent && (
-          <NewsStory event={selectedEvent} generatedAt={session.market.generatedAt} />
+      <section className={`insight-strip${selectedStory ? " has-news" : ""}`} aria-label="Market guidance">
+        {selectedStory && (
+          <NewsStory story={selectedStory} generatedAt={session.market.generatedAt} />
         )}
         <MovementStory asset={asset} />
         <NextObjective ownedAssetCount={session.firstSessionOwnedAssetCount} />

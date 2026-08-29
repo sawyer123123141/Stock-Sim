@@ -20,6 +20,7 @@ export function createSeedMarket(): MarketState {
   return {
     sequence: 0,
     activeEvents: [],
+    stories: [],
     assets: [
       stockAsset({ id: "nova", symbol: "NOVA", name: "Nova Motors", kind: "stock", sector: "Mobility", price: 42.18, baselineVolatility: 0.28, sentiment: 0.25, momentum: 0.05, sectorTrend: 0.12, companyStrength: 0.45 }),
       stockAsset({ id: "luma", symbol: "LUMA", name: "Luma Labs", kind: "stock", sector: "Technology", price: 78.4, baselineVolatility: 0.36, sentiment: 0.08, momentum: -0.04, sectorTrend: 0.22, companyStrength: 0.62 }),

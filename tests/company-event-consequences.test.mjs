@@ -181,8 +181,8 @@ test("persistent catch-up and restart apply generated consequences on the same c
   assert.deepEqual(dormant.store.state.runtime, continuous.store.state.runtime);
   assert.deepEqual(restarted.store.state.runtime, continuous.store.state.runtime);
   assert.deepEqual(
-    continuous.store.state.runtime.appliedEventIds,
-    ["event-1", "event-2"],
-    "each generated event is marked exactly once"
+    continuous.store.state.runtime.appliedInformationIds,
+    ["story-1:award", "story-2:review"],
+    "each generated public update is marked exactly once"
   );
 });

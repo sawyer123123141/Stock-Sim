@@ -1,4 +1,4 @@
-import type { MarketPressure, MarketSnapshot, MarketState, TradeSide } from "../../../packages/shared/src/index.js";
+import type { MarketEvent, MarketPressure, MarketSnapshot, MarketState, TradeSide } from "../../../packages/shared/src/index.js";
 import {
   EVENT_CADENCE_MS,
   calculateSimulatedInvestorPressure,
@@ -6,10 +6,11 @@ import {
   FIRST_EVENT_DELAY_MS,
   calculateMarketRead,
   applyStockEventConsequences,
-  createMarketEvent,
+  createMarketStory,
   createSeedMarket,
   createStatefulSeededRng,
   hydrateMarketCompanyReality,
+  publishMarketStoryUpdate,
   tickMarket,
   toMarketSnapshot,
   type MarketReadByAsset,
@@ -46,8 +47,10 @@ export interface MarketRuntimeRecoveryState {
   firstEventDelayMs: number;
   eventIntervalMs: number;
   playerPressure: Record<string, TradeImpulse[]>;
-  /** Events whose versioned consequences were applied at canonical publishedAt. */
-  appliedEventIds: string[];
+  /** Information whose versioned consequences were applied at canonical publication. */
+  appliedInformationIds?: string[];
+  /** Legacy recovery alias retained for already-persisted runtimes and consumers. */
+  appliedEventIds?: string[];
 }
 
 export interface MarketRuntime {
@@ -75,7 +78,8 @@ const SYSTEM_SCHEDULER: MarketScheduler = {
 
 export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketRuntime {
   const recovery = options.recoveryState;
-  let state = hydrateMarketCompanyReality(recovery?.marketState ?? options.initialState ?? createSeedMarket());
+  const initialState = recovery?.marketState ?? options.initialState ?? createSeedMarket();
+  let state = hydrateMarketCompanyReality({ ...initialState, stories: initialState.stories ?? [] });
   const rng = createStatefulSeededRng(recovery?.rngState ?? options.seed ?? DEFAULT_SEED);
   const clock = options.clock ?? SYSTEM_CLOCK;
   const scheduler = options.scheduler ?? SYSTEM_SCHEDULER;
@@ -85,7 +89,7 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
   const eventIntervalMs = recovery?.eventIntervalMs ?? options.eventIntervalMs ?? EVENT_CADENCE_MS;
   let nextEventAtMs = recovery?.nextEventAtMs ?? lastAdvancedAtMs + firstEventDelayMs;
   let eventCount = recovery?.eventCount ?? 0;
-  const appliedEventIds = new Set(recovery?.appliedEventIds ?? []);
+  const appliedInformationIds = new Set(recovery?.appliedInformationIds ?? recovery?.appliedEventIds ?? []);
   let cancelScheduledTick: (() => void) | undefined;
   const listeners = new Set<MarketSnapshotListener>();
   const playerPressure = createPlayerPressureBook(recovery?.playerPressure);
@@ -119,37 +123,74 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
       return snapshot();
     }
 
-    function applyConsequences(event: ReturnType<typeof createMarketEvent>): void {
-      if (event.consequenceVersion !== 1 || appliedEventIds.has(event.id)) return;
+    function applyConsequences(event: MarketEvent): void {
+      if (event.consequenceVersion !== 1 || appliedInformationIds.has(event.id)) return;
       state = applyStockEventConsequences(state, event);
-      appliedEventIds.add(event.id);
+      appliedInformationIds.add(event.id);
     }
 
-    for (const event of [...state.activeEvents]
-      .filter((event) => event.publishedAt <= nowMs)
-      .sort((left, right) => left.publishedAt - right.publishedAt || left.id.localeCompare(right.id))) {
-      applyConsequences(event);
+    function applyLegacyConsequences(upToMs: number): void {
+      for (const event of [...state.activeEvents]
+        .filter((event) => event.publishedAt <= upToMs)
+        .sort((left, right) => left.publishedAt - right.publishedAt || left.id.localeCompare(right.id))) {
+        applyConsequences(event);
+      }
     }
 
-    if (nowMs === lastAdvancedAtMs) return snapshot();
+    function nextPendingUpdate(): { storyId: string; updateId: string; publishedAt: number } | null {
+      const pending = state.stories.flatMap((story) => story.updates
+        .filter((update) => update.state === "pending")
+        .map((update) => ({ storyId: story.id, updateId: update.id, publishedAt: update.publishedAt }))
+      ).sort((left, right) => left.publishedAt - right.publishedAt || left.updateId.localeCompare(right.updateId));
+      return pending[0] ?? null;
+    }
 
-    while (nextEventAtMs <= nowMs) {
+    function publishUpdate(storyId: string, updateId: string): void {
+      const story = state.stories.find((candidate) => candidate.id === storyId);
+      const update = story?.updates.find((candidate) => candidate.id === updateId);
+      if (!story || !update || update.state !== "pending") return;
+      const publication = publishMarketStoryUpdate(story, update, state.assets);
+      const updates = story.updates.map((candidate) => candidate.id === updateId ? publication.update : candidate);
+      const publishedStory = {
+        ...story,
+        updates,
+        status: updates.every((candidate) => candidate.state === "published") ? "resolved" as const : "developing" as const
+      };
+      state = {
+        ...state,
+        activeEvents: [...state.activeEvents, publication.event],
+        stories: state.stories.map((candidate) => candidate.id === storyId ? publishedStory : candidate)
+      };
+      applyConsequences(publication.event);
+    }
+
+    function createDueStory(): void {
       eventCount += 1;
-      // Snapshot the prior expectations, then apply the newly public event at
-      // its canonical publication time before creating any later event.
-      const event = createMarketEvent({
-        id: `event-${eventCount}`,
+      const story = createMarketStory({
+        id: `story-${eventCount}`,
         publishedAt: nextEventAtMs,
         rng,
         assets: state.assets
       });
-      state = {
-        ...state,
-        activeEvents: [...state.activeEvents, event]
-      };
-      applyConsequences(event);
+      state = { ...state, stories: [...state.stories, story] };
       nextEventAtMs += eventIntervalMs;
     }
+
+    applyLegacyConsequences(nowMs);
+    while (true) {
+      const pending = nextPendingUpdate();
+      const pendingAtMs = pending?.publishedAt ?? Number.POSITIVE_INFINITY;
+      const generatedAtMs = nextEventAtMs;
+      const nextAtMs = Math.min(pendingAtMs, generatedAtMs);
+      if (nextAtMs > nowMs) break;
+      if (pending && pendingAtMs <= generatedAtMs) {
+        publishUpdate(pending.storyId, pending.updateId);
+      } else {
+        createDueStory();
+      }
+    }
+
+    if (nowMs === lastAdvancedAtMs) return snapshot();
 
     const deltaMs = nowMs - lastAdvancedAtMs;
     const combinedPressureByAsset: Record<string, MarketPressure> = {};
@@ -215,6 +256,7 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
   }
 
   function recoveryState(): MarketRuntimeRecoveryState {
+    const applied = [...appliedInformationIds];
     return {
       marketState: state,
       rngState: rng.state(),
@@ -225,7 +267,8 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
       firstEventDelayMs,
       eventIntervalMs,
       playerPressure: playerPressure.recoveryState(),
-      appliedEventIds: [...appliedEventIds]
+      appliedInformationIds: applied,
+      appliedEventIds: applied
     };
   }
 

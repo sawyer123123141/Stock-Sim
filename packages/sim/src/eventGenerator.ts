@@ -3,6 +3,8 @@ import type {
   EventSignificance,
   MarketEvent,
   MarketEventTarget,
+  MarketStory,
+  MarketStoryUpdate,
   StockEventOutcome,
   StockFundamentals
 } from "../../shared/src/index.js";
@@ -16,6 +18,7 @@ const CRYPTO_REACTION_DURATION_MS = 90_000;
 
 export const FIRST_EVENT_DELAY_MS = 45_000;
 export const EVENT_CADENCE_MS = 120_000;
+export const STORY_FOLLOW_UP_DELAY_MS = 60_000;
 
 interface MarketEventTemplate {
   id: string;
@@ -26,6 +29,17 @@ interface MarketEventTemplate {
   outcome?: StockEventOutcome;
   significance?: EventSignificance;
   fundamentalImpact?: Partial<StockFundamentals>;
+  reactsQuickly?: boolean;
+}
+
+interface StoryUpdateTemplate {
+  id: string;
+  title: string;
+  summary: string;
+  outcome?: StockEventOutcome;
+  significance?: EventSignificance;
+  fundamentalImpact?: Partial<StockFundamentals>;
+  effectHint?: number;
   reactsQuickly?: boolean;
 }
 
@@ -116,6 +130,113 @@ const EVENT_CATALOG: readonly MarketEventTemplate[] = [
   }
 ];
 
+const STORY_TEMPLATES: Readonly<Record<string, { title: string; updates: readonly StoryUpdateTemplate[] }>> = {
+  "nova-demand": {
+    title: "NOVA's commuter launch",
+    updates: [
+      {
+        id: "demand",
+        title: "Strong showroom demand reported",
+        summary: "Early buyers are showing unusually strong interest in NOVA's new commuter model.",
+        outcome: { demand: 1, growth: 0.7 },
+        significance: "normal",
+        fundamentalImpact: { growth: 0.05, reputation: 0.03 }
+      },
+      {
+        id: "production",
+        title: "Production capacity questioned",
+        summary: "The company is reviewing whether fulfillment can keep pace with demand.",
+        outcome: { execution: 0.35 },
+        significance: "normal",
+        fundamentalImpact: { growth: 0.03, reputation: 0.01 }
+      }
+    ]
+  },
+  "nova-production": {
+    title: "NOVA supplier review",
+    updates: [
+      {
+        id: "review",
+        title: "Supplier review announced",
+        summary: "NOVA is reviewing a production issue, though the extent of disruption is not yet clear.",
+        outcome: { execution: -0.45 },
+        significance: "major"
+      },
+      {
+        id: "impact",
+        title: "Production impact comes into focus",
+        summary: "The review points to a deeper hit to output and margins than first understood.",
+        outcome: { execution: -0.8, profitability: -0.45 },
+        significance: "major",
+        fundamentalImpact: { profitability: -0.08, reputation: -0.03 }
+      }
+    ]
+  },
+  "luma-breakthrough": {
+    title: "LUMA battery breakthrough",
+    updates: [
+      {
+        id: "demonstration",
+        title: "Technical demonstration succeeds",
+        summary: "LUMA's battery-material demonstration has strengthened interest in its technology.",
+        outcome: { growth: 0.9, competitivePosition: 0.85 },
+        significance: "major",
+        fundamentalImpact: { competitivePosition: 0.1, reputation: 0.03 }
+      },
+      {
+        id: "scaling",
+        title: "Commercial scaling details emerge",
+        summary: "The technical result stands, but production-scale requirements appear more demanding than hoped.",
+        outcome: { growth: 0.45, execution: 0.25 },
+        significance: "major",
+        fundamentalImpact: { growth: 0.1, competitivePosition: 0.06, reputation: 0.03 }
+      }
+    ]
+  },
+  "luma-update": {
+    title: "LUMA timetable revision",
+    updates: [
+      {
+        id: "delay",
+        title: "Launch timetable revised",
+        summary: "LUMA has pushed back part of its launch schedule while it works through the revised plan.",
+        outcome: { execution: -0.5 },
+        significance: "normal",
+        fundamentalImpact: { reputation: -0.04 }
+      },
+      {
+        id: "progress",
+        title: "Broader development progress clarified",
+        summary: "The revised timing affects the near term, while longer-range work remains on track.",
+        outcome: { growth: 0.45 },
+        significance: "normal",
+        fundamentalImpact: { growth: -0.04, reputation: -0.01 }
+      }
+    ]
+  },
+  "harvest-contract": {
+    title: "Harvest Grid storage contract",
+    updates: [
+      {
+        id: "award",
+        title: "Regional storage contract awarded",
+        summary: "Harvest Grid has secured a new regional storage project with demand potential over time.",
+        outcome: { demand: 0.5 },
+        significance: "normal",
+        fundamentalImpact: { growth: 0.03, reputation: 0.02 }
+      },
+      {
+        id: "financials",
+        title: "Contract contribution clarified",
+        summary: "Further detail suggests the project can support both execution and profitability.",
+        outcome: { profitability: 0.5, execution: 0.35 },
+        significance: "normal",
+        fundamentalImpact: { profitability: 0.06 }
+      }
+    ]
+  }
+};
+
 export interface CreateMarketEventOptions {
   id: string;
   publishedAt: number;
@@ -194,6 +315,112 @@ export function effectFromStockEventSurprise(
   const boundedResponse = Math.tanh(clamp(surprise, -1, 1) * COMPATIBILITY_RESPONSE_GAIN)
     * MAX_COMPATIBILITY_EFFECT;
   return boundedResponse * SIGNIFICANCE_EFFECT_SCALE[significance];
+}
+
+function reactionTiming(publishedAt: number, reactsQuickly: boolean | undefined): Pick<MarketEvent, "reactionStartsAt" | "expiresAt"> {
+  const reactionLeadMs = reactsQuickly ? CRYPTO_REACTION_LEAD_MS : STOCK_REACTION_LEAD_MS;
+  const reactionDurationMs = reactsQuickly ? CRYPTO_REACTION_DURATION_MS : STOCK_REACTION_DURATION_MS;
+  const reactionStartsAt = publishedAt + reactionLeadMs;
+  return { reactionStartsAt, expiresAt: reactionStartsAt + reactionDurationMs };
+}
+
+function storyUpdate(
+  template: StoryUpdateTemplate,
+  storyId: string,
+  publishedAt: number
+): MarketStoryUpdate {
+  return {
+    id: `${storyId}:${template.id}`,
+    title: template.title,
+    summary: template.summary,
+    publishedAt,
+    state: "pending",
+    ...(template.outcome ? { outcome: { ...template.outcome } } : {}),
+    ...(template.significance ? { significance: template.significance } : {}),
+    ...(template.fundamentalImpact ? { fundamentalImpact: { ...template.fundamentalImpact } } : {}),
+    ...(template.effectHint !== undefined ? { effectHint: template.effectHint } : {}),
+    ...(template.reactsQuickly ? { reactsQuickly: true } : {})
+  };
+}
+
+/**
+ * Creates a deterministic private information plan. It intentionally does not
+ * read expectations or resolve future surprise/effect values.
+ */
+export function createMarketStory(options: CreateMarketEventOptions): MarketStory {
+  const templateIndex = Math.min(EVENT_CATALOG.length - 1, Math.floor(options.rng() * EVENT_CATALOG.length));
+  const template = EVENT_CATALOG[templateIndex] as MarketEventTemplate;
+  const planned = STORY_TEMPLATES[template.id];
+  const updates: readonly StoryUpdateTemplate[] = planned?.updates ?? [{
+    id: "initial",
+    title: template.title,
+    summary: template.summary,
+    ...(template.outcome ? { outcome: template.outcome } : {}),
+    ...(template.significance ? { significance: template.significance } : {}),
+    ...(template.fundamentalImpact ? { fundamentalImpact: template.fundamentalImpact } : {}),
+    ...(template.effect !== undefined ? { effectHint: template.effect } : {}),
+    ...(template.reactsQuickly ? { reactsQuickly: true } : {})
+  }];
+  return {
+    id: options.id,
+    title: planned?.title ?? template.title,
+    target: { ...template.target },
+    status: "developing",
+    updates: updates.map((update, index) => storyUpdate(
+      update,
+      options.id,
+      options.publishedAt + index * STORY_FOLLOW_UP_DELAY_MS
+    ))
+  };
+}
+
+/**
+ * Resolves one update at its canonical public time and materializes its single
+ * existing event reaction. Only this point snapshots current expectations.
+ */
+export function publishMarketStoryUpdate(
+  story: MarketStory,
+  update: MarketStoryUpdate,
+  assets: AssetState[]
+): { update: MarketStoryUpdate; event: MarketEvent } {
+  if (update.state !== "pending") throw new RangeError(`Story update ${update.id} is already published.`);
+  const eventBase: MarketEvent = {
+    id: update.id,
+    title: update.title,
+    summary: update.summary,
+    effect: update.effectHint ?? 0,
+    publishedAt: update.publishedAt,
+    target: { ...story.target },
+    ...reactionTiming(update.publishedAt, update.reactsQuickly)
+  };
+  if (!update.outcome || !update.significance) {
+    return {
+      update: { ...update, state: "published", effect: eventBase.effect },
+      event: eventBase
+    };
+  }
+
+  const stocks = matchingStocks(story.target, assets);
+  const outcome = Object.fromEntries(
+    Object.entries(update.outcome).map(([dimension, value]) => [dimension, normalizedOutcomeValue(value)])
+  ) as StockEventOutcome;
+  const expectedOutcome = averageExpectedOutcome(outcome, stocks);
+  const surprise = calculateStockEventSurprise(outcome, expectedOutcome);
+  const effect = effectFromStockEventSurprise(surprise, update.significance);
+  const event: MarketEvent = {
+    ...eventBase,
+    effect,
+    outcome,
+    expectedOutcome,
+    surprise,
+    significance: update.significance,
+    ...(update.fundamentalImpact ? { fundamentalImpact: { ...update.fundamentalImpact } } : {}),
+    consequenceVersion: 1
+  };
+  return {
+    update: { ...update, state: "published", expectedOutcome, surprise, effect },
+    event
+  };
 }
 
 export function createMarketEvent(options: CreateMarketEventOptions): MarketEvent {
