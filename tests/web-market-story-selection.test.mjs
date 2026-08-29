@@ -28,6 +28,17 @@ async function selectStories(asset, stories) {
   return JSON.parse(stdout);
 }
 
+async function selectStoryHistory(asset, stories) {
+  const { stdout } = await execFile(process.execPath, [
+    "--no-warnings",
+    "--experimental-strip-types",
+    "--input-type=module",
+    "--eval",
+    `import { selectStoryHistory } from ${JSON.stringify(selectorModule.href)}; console.log(JSON.stringify(selectStoryHistory(${JSON.stringify(asset)}, ${JSON.stringify(stories)})));`
+  ]);
+  return JSON.parse(stdout);
+}
+
 test("a relevant developing sector story beats an older resolved asset story", async () => {
   const selected = await selectStory(
     { id: "nova", sector: "Mobility" },
@@ -86,4 +97,19 @@ test("chart selection keeps every public story relevant to the selected asset", 
 
   const selected = await selectStories({ id: "nova", sector: "Mobility" }, stories);
   assert.deepEqual(selected.map((story) => story.id), ["asset", "global"]);
+});
+
+test("Stories history keeps relevant public stories, with developing stories before resolved history", async () => {
+  const selected = await selectStoryHistory(
+    { id: "nova", sector: "Mobility" },
+    [
+      { id: "resolved-asset", title: "Resolved asset", target: { kind: "asset", value: "nova" }, status: "resolved", updates: [{ id: "ra", title: "Old asset update", summary: "", publishedAt: "2026-01-01T00:01:00.000Z" }] },
+      { id: "resolved-global", title: "Resolved global", target: { kind: "global" }, status: "resolved", updates: [{ id: "rg", title: "New global update", summary: "", publishedAt: "2026-01-01T00:04:00.000Z" }] },
+      { id: "developing-sector", title: "Developing sector", target: { kind: "sector", value: "Mobility" }, status: "developing", updates: [{ id: "ds", title: "Sector update", summary: "", publishedAt: "2026-01-01T00:03:00.000Z" }] },
+      { id: "other-asset", title: "Other asset", target: { kind: "asset", value: "luma" }, status: "developing", updates: [{ id: "other", title: "Hidden", summary: "", publishedAt: "2026-01-01T00:05:00.000Z" }] }
+    ]
+  );
+
+  assert.deepEqual(selected.map((story) => story.id), ["developing-sector", "resolved-asset", "resolved-global"]);
+  assert.ok(selected.every((story) => story.updates.every((update) => update.publishedAt)));
 });

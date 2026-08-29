@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  calculateMarketRead,
   classifyMarketPressure,
-  classifyMarketRisk,
+  classifyMarketMovement,
   createSeedMarket
 } from "../dist/packages/sim/src/index.js";
 import { createMarketRuntime } from "../dist/apps/server/src/marketRuntime.js";
@@ -13,20 +14,32 @@ function assetWith(overrides) {
   return { ...nova, ...overrides };
 }
 
-test("market risk classification is deterministic and follows baseline volatility", () => {
-  const calmerStock = assetWith({ baselineVolatility: 0.22, kind: "stock" });
-  const moreVolatileAsset = assetWith({ baselineVolatility: 0.82, kind: "crypto" });
+test("the same asset can be calm or elevated according to current activity", () => {
+  const quietNova = assetWith({ lastTickChangePct: 0.01, momentum: 0.01 });
+  const eventfulNova = assetWith({ lastTickChangePct: 0.42, momentum: 0.3 });
 
-  assert.equal(classifyMarketRisk(calmerStock), "low");
-  assert.equal(classifyMarketRisk(calmerStock), "low");
-  assert.equal(classifyMarketRisk(moreVolatileAsset), "high");
+  assert.equal(classifyMarketMovement(quietNova), "calm");
+  assert.equal(classifyMarketMovement(eventfulNova), "elevated");
+  assert.equal(classifyMarketMovement(eventfulNova), "elevated");
 });
 
-test("normal seed crypto does not appear low risk", () => {
-  const crypto = createSeedMarket().assets.filter((asset) => asset.kind === "crypto");
+test("large recent moves are not calm while high baseline volatility alone is not elevated", () => {
+  const nova = assetWith({ baselineVolatility: 0.22, lastTickChangePct: -0.2, momentum: -0.12 });
+  const pulse = createSeedMarket().assets.find((asset) => asset.id === "pulse");
+  assert.ok(pulse);
 
-  assert.ok(crypto.length > 0);
-  assert.ok(crypto.every((asset) => classifyMarketRisk(asset) !== "low"));
+  assert.equal(classifyMarketMovement(nova), "active");
+  assert.equal(classifyMarketMovement({ ...pulse, lastTickChangePct: 0, momentum: 0 }), "calm");
+  assert.equal(classifyMarketMovement({ ...pulse, lastTickChangePct: 0.2, momentum: 0.08 }), "active");
+});
+
+test("an active event moves an otherwise quiet asset out of calm", () => {
+  const quietNova = assetWith({ lastTickChangePct: 0, momentum: 0 });
+
+  assert.equal(
+    calculateMarketRead(quietNova, { simulated: 0, player: 0 }, 0.41).movement,
+    "active"
+  );
 });
 
 test("market pressure language stays coarse across neutral, slight, and strong signals", () => {
@@ -54,7 +67,7 @@ test("the server snapshot derives qualitative market reads from combined pressur
 
   const beforeTrade = runtime.snapshot().assets.find((asset) => asset.id === "nova");
   assert.ok(beforeTrade);
-  assert.deepEqual(beforeTrade.marketRead, { risk: "low", pressure: "balanced" });
+  assert.deepEqual(beforeTrade.marketRead, { movement: "calm", pressure: "balanced" });
 
   for (let index = 0; index < 100; index += 1) {
     runtime.recordPlayerTrade("nova", "buy", 10_000, 1_000);
@@ -62,7 +75,7 @@ test("the server snapshot derives qualitative market reads from combined pressur
   const afterTrade = runtime.snapshot().assets.find((asset) => asset.id === "nova");
   assert.ok(afterTrade);
   assert.equal(afterTrade.marketRead.pressure, "slightly-up");
-  assert.deepEqual(Object.keys(afterTrade.marketRead).sort(), ["pressure", "risk"]);
+  assert.deepEqual(Object.keys(afterTrade.marketRead).sort(), ["movement", "pressure"]);
   assert.equal("simulated" in afterTrade.marketRead, false);
   assert.equal("player" in afterTrade.marketRead, false);
   assert.equal("eventEffect" in afterTrade.marketRead, false);

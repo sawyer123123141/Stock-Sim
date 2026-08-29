@@ -18,7 +18,7 @@
   background: rgba(10, 22, 40, 0.78);
 }
 
-.movement-story {
+.insight-strip .movement-story {
   display: grid;
   grid-template-columns: 36px minmax(0, 1fr);
   gap: 12px;
@@ -182,7 +182,7 @@
 }
 
 @media (max-width: 520px) {
-  .movement-story,
+  .insight-strip .movement-story,
   .developing-story {
     grid-template-columns: 1fr;
   }

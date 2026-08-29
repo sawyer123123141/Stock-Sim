@@ -72,3 +72,20 @@ export function selectRelevantMarketStories(
     ))
     .map((candidate) => candidate.story);
 }
+
+/** Full public history: developing stories first, then relevance and recency. */
+export function selectStoryHistory(
+  asset: EventSelectableAsset,
+  stories: MarketStorySnapshot[]
+): MarketStorySnapshot[] {
+  return stories
+    .map((story) => ({ story, relevance: relevanceForAsset(story, asset) }))
+    .filter((candidate) => candidate.relevance > 0)
+    .sort((left, right) => (
+      Number(right.story.status === "developing") - Number(left.story.status === "developing")
+      || right.relevance - left.relevance
+      || storyPublicationTime(right.story).localeCompare(storyPublicationTime(left.story))
+      || left.story.id.localeCompare(right.story.id)
+    ))
+    .map((candidate) => candidate.story);
+}

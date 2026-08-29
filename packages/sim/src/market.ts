@@ -10,6 +10,7 @@ import type {
 } from "../../shared/src/index.js";
 import { combinedEventEffect } from "./events.js";
 import { calculateMarketRead } from "./marketRead.js";
+import { toStockResearchSnapshot } from "./research.js";
 import type { RandomSource } from "./rng.js";
 import { tickAsset } from "./tick.js";
 
@@ -49,17 +50,27 @@ export function toMarketSnapshot(
   return {
     sequence: state.sequence,
     generatedAt: new Date(generatedAtMs).toISOString(),
-    assets: state.assets.map((asset) => ({
-      id: asset.id,
-      symbol: asset.symbol,
-      name: asset.name,
-      kind: asset.kind,
-      sector: asset.sector,
-      price: asset.price,
-      lastTickChangePct: asset.lastTickChangePct,
-      marketRead: marketReadByAsset[asset.id] ?? calculateMarketRead(asset, ZERO_PRESSURE),
-      reasons: asset.reasons
-    })),
+    assets: state.assets.map((asset) => {
+      const research = toStockResearchSnapshot(asset);
+      return {
+        id: asset.id,
+        symbol: asset.symbol,
+        name: asset.name,
+        kind: asset.kind,
+        sector: asset.sector,
+        price: asset.price,
+        lastTickChangePct: asset.lastTickChangePct,
+        marketRead: marketReadByAsset[asset.id] ?? calculateMarketRead(asset, ZERO_PRESSURE),
+        ...(research ? { research } : {}),
+        reasons: asset.reasons.map((reason) => ({
+          code: reason.code,
+          label: reason.label,
+          direction: reason.direction,
+          strength: reason.weight < 0.0005 ? "small" : reason.weight < 0.0015 ? "moderate" : "strong",
+          summary: reason.summary
+        }))
+      };
+    }),
     events: state.activeEvents
       .filter((event) => event.publishedAt <= generatedAtMs && event.expiresAt > generatedAtMs)
       .map(toMarketEventSnapshot),

@@ -1,11 +1,15 @@
+import { useState } from "react";
 import { AssetRail } from "./components/AssetRail";
+import { AssetTabs, type AssetTab } from "./components/AssetTabs";
+import { CompanyProfile } from "./components/CompanyProfile";
 import { MarketHeader } from "./components/MarketHeader";
-import { MarketPulse } from "./components/MarketPulse";
+import { MarketRead } from "./components/MarketRead";
 import { MovementStory } from "./components/MovementStory";
 import { NewsStory } from "./components/NewsStory";
-import { NextObjective } from "./components/NextObjective";
 import { PositionCard } from "./components/PositionCard";
 import { PriceChart } from "./components/PriceChart";
+import { ResearchPanel } from "./components/ResearchPanel";
+import { StoryHistory } from "./components/StoryHistory";
 import { TradeTicket } from "./components/TradeTicket";
 import {
   describeMarketChange,
@@ -18,6 +22,7 @@ import { selectRelevantMarketStories, selectRelevantMarketStory } from "./market
 
 export function App() {
   const session = useMarketSession();
+  const [selectedTab, setSelectedTab] = useState<AssetTab>("overview");
 
   if (session.loading) {
     return (
@@ -55,7 +60,7 @@ export function App() {
 
   return (
     <main className="app-shell">
-      <MarketHeader totalValue={session.portfolio.totalValue} cash={session.portfolio.cash} />
+      <MarketHeader totalValue={session.portfolio.totalValue} cash={session.portfolio.cash} ownedAssetCount={session.firstSessionOwnedAssetCount} />
 
       {session.connectionNotice && (
         <div className="connection-notice" role="status">{session.connectionNotice}</div>
@@ -65,7 +70,7 @@ export function App() {
         <AssetRail
           assets={session.market.assets}
           selectedAssetId={session.selectedAssetId}
-          onSelect={session.selectAsset}
+          onSelect={(assetId) => { session.selectAsset(assetId); setSelectedTab("overview"); }}
         />
 
         <section className="asset-surface" aria-labelledby="asset-title">
@@ -94,14 +99,18 @@ export function App() {
             </div>
           </div>
 
-          <MarketPulse marketRead={asset.marketRead} />
+          <AssetTabs asset={asset} selectedTab={selectedTab} onSelect={setSelectedTab} />
 
-          <div className="timeframe-row" aria-label="Chart timeframe">
-            <span className="timeframe-button is-active">LIVE</span>
-            <span>Session data only</span>
-          </div>
-
-          <PriceChart asset={asset} samples={session.selectedHistory} updates={relevantStoryUpdates} />
+          {selectedTab === "overview" && <section id="asset-panel-overview" role="tabpanel" aria-labelledby="asset-tab-overview" className="overview-panel">
+            <MarketRead marketRead={asset.marketRead} />
+            <div className="timeframe-row" aria-label="Chart timeframe"><span className="timeframe-button is-active">LIVE</span><span>Session data only</span></div>
+            <PriceChart asset={asset} samples={session.selectedHistory} updates={relevantStoryUpdates} />
+            <MovementStory asset={asset} />
+            {selectedStory && <NewsStory story={selectedStory} generatedAt={session.market.generatedAt} />}
+          </section>}
+          {selectedTab === "company" && <CompanyProfile asset={asset} />}
+          {selectedTab === "research" && <ResearchPanel asset={asset} />}
+          {selectedTab === "stories" && <StoryHistory asset={asset} stories={session.market.stories} />}
         </section>
 
         <aside className="trade-column" aria-label={`${asset.symbol} trade and position`}>
@@ -125,13 +134,6 @@ export function App() {
         </aside>
       </div>
 
-      <section className={`insight-strip${selectedStory ? " has-news" : ""}`} aria-label="Market guidance">
-        {selectedStory && (
-          <NewsStory story={selectedStory} generatedAt={session.market.generatedAt} />
-        )}
-        <MovementStory asset={asset} />
-        <NextObjective ownedAssetCount={session.firstSessionOwnedAssetCount} />
-      </section>
     </main>
   );
 }
