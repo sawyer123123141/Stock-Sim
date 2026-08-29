@@ -38,6 +38,13 @@ function stockContributions(asset: AssetState, context: TickContext, rng: Random
     contribution("momentum", "Recent momentum", asset.momentum * 0.00004 * time.linear, "Recent gains are attracting more attention.", "Recent losses are making traders more cautious."),
     contribution("demand", "Buying pressure", demand * 0.0004 * time.linear, "Buying interest is stronger than selling pressure.", "Selling pressure is stronger than buying interest."),
     contribution("news", "News and events", context.eventEffect * STOCK_EVENT_SCALE * time.linear, "Positive news is attracting investors.", "Negative news is pushing investors away."),
+    contribution(
+      "relationship",
+      "Related company",
+      (context.relationshipEffect ?? 0) * STOCK_EVENT_SCALE * time.linear,
+      `Developments at ${context.relationshipSourceName ?? "a related company"} are supporting expectations around this stock.`,
+      `Developments at ${context.relationshipSourceName ?? "a related company"} are weighing on expectations around this stock.`
+    ),
     contribution("noise", "Normal market movement", noise, "Normal trading activity is giving the price a small lift.", "Normal trading activity is nudging the price lower.")
   ];
 }

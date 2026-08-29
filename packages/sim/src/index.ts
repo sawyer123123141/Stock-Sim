@@ -1,6 +1,7 @@
 export * from "./demand.js";
 export * from "./companyReality.js";
 export * from "./companyEventConsequences.js";
+export * from "./companyRelationships.js";
 export * from "./eventGenerator.js";
 export * from "./events.js";
 export * from "./explain.js";

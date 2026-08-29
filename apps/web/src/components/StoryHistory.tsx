@@ -1,5 +1,5 @@
 import type { AssetSnapshot, MarketStorySnapshot } from "../../../../packages/shared/src/index";
-import { selectStoryHistory } from "../marketEventSelection";
+import { isRelatedCompanyStory, selectStoryHistory } from "../marketEventSelection";
 
 export function StoryHistory({ asset, stories }: { asset: AssetSnapshot; stories: MarketStorySnapshot[] }) {
   const history = selectStoryHistory(asset, stories);
@@ -11,7 +11,7 @@ export function StoryHistory({ asset, stories }: { asset: AssetSnapshot; stories
         <div className="story-history-list">
           {history.map((story) => (
             <article key={story.id} className={`story-history-item is-${story.status}`}>
-              <div><h3>{story.title}</h3><span>{story.status === "developing" ? "Developing" : "Resolved"}</span></div>
+              <div><h3>{story.title}</h3><span>{isRelatedCompanyStory(story, asset) ? "RELATED COMPANY" : story.status === "developing" ? "Developing" : "Resolved"}</span></div>
               <ol>{story.updates.map((update) => <li key={update.id}><strong>{update.title}</strong><p>{update.summary}</p><time dateTime={update.publishedAt}>{new Date(update.publishedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</time></li>)}</ol>
             </article>
           ))}

@@ -14,6 +14,13 @@ const expectationCopy: Record<keyof NonNullable<AssetSnapshot["research"]>["expe
   execution: { cautious: "Investors remain cautious on execution", balanced: "Execution expectations are balanced", constructive: "Investors expect constructive execution", high: "Execution expectations are high" }
 };
 
+const connectionCopy = {
+  supplier: "This company relies partly on outside battery technology. Major supplier developments can affect expectations around execution.",
+  customer: "Demand from mobility customers can influence expectations around this company’s outlook.",
+  partner: "Developments at a business partner can affect expectations around execution.",
+  competitor: "Competitor developments can affect expectations around demand."
+} as const;
+
 export function ResearchPanel({ asset }: { asset: AssetSnapshot }) {
   const research = asset.research;
   if (!research) return null;
@@ -22,6 +29,7 @@ export function ResearchPanel({ asset }: { asset: AssetSnapshot }) {
       <div><span className="section-kicker">RESEARCH</span><h2>{asset.name}</h2></div>
       <div className="research-section"><h3>Company outlook</h3>{Object.entries(research.company).map(([key, value]) => <div className="research-row" key={key}><strong>{key.replace(/([A-Z])/g, " $1")}</strong><span>{companyCopy[key as keyof typeof companyCopy][value]}</span></div>)}</div>
       <div className="research-section"><h3>Market expectations</h3>{Object.entries(research.expectations).map(([key, value]) => <div className="research-row" key={key}><strong>{key}</strong><span>{expectationCopy[key as keyof typeof expectationCopy][value]}</span></div>)}</div>
+      {asset.relationships && asset.relationships.length > 0 && <div className="research-section market-connections"><h3>MARKET CONNECTIONS</h3>{asset.relationships.map((relationship) => <div className="research-row" key={`${relationship.assetId}-${relationship.kind}`}><strong>{relationship.name}</strong><span>{connectionCopy[relationship.kind]}</span></div>)}</div>}
     </section>
   );
 }
