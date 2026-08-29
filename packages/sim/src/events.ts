@@ -30,3 +30,20 @@ export function eventEffectForAsset(event: MarketEvent, asset: AssetState, nowMs
 export function combinedEventEffect(events: MarketEvent[], asset: AssetState, nowMs: number): number {
   return clamp(events.reduce((sum, event) => sum + eventEffectForAsset(event, asset, nowMs), 0), -1, 1);
 }
+
+/** Bounded reactions from another company's already-public information. */
+export function combinedRelationshipEventEffect(events: MarketEvent[], asset: AssetState, nowMs: number): number {
+  return clamp(
+    events.filter((event) => event.relationship).reduce((sum, event) => sum + eventEffectForAsset(event, asset, nowMs), 0),
+    -1,
+    1
+  );
+}
+
+export function combinedPrimaryEventEffect(events: MarketEvent[], asset: AssetState, nowMs: number): number {
+  return clamp(
+    events.filter((event) => !event.relationship).reduce((sum, event) => sum + eventEffectForAsset(event, asset, nowMs), 0),
+    -1,
+    1
+  );
+}

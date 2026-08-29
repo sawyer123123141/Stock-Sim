@@ -6,6 +6,11 @@ import {
   FIRST_EVENT_DELAY_MS,
   calculateMarketRead,
   applyStockEventConsequences,
+  COMPANY_RELATIONSHIPS,
+  applyRelationshipExpectationImpact,
+  createRelationshipReactionEvent,
+  deriveRelationshipImpact,
+  relationshipInformationId,
   createMarketStory,
   createSeedMarket,
   createStatefulSeededRng,
@@ -150,7 +155,8 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
       const update = story?.updates.find((candidate) => candidate.id === updateId);
       if (!story || !update || update.state !== "pending") return;
       const publication = publishMarketStoryUpdate(story, update, state.assets);
-      const updates = story.updates.map((candidate) => candidate.id === updateId ? publication.update : candidate);
+      let publishedUpdate = publication.update;
+      const updates = story.updates.map((candidate) => candidate.id === updateId ? publishedUpdate : candidate);
       const publishedStory = {
         ...story,
         updates,
@@ -162,6 +168,33 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
         stories: state.stories.map((candidate) => candidate.id === storyId ? publishedStory : candidate)
       };
       applyConsequences(publication.event);
+      const relatedAssetIds: string[] = [];
+      const relationships = COMPANY_RELATIONSHIPS
+        .filter((relationship) => relationship.fromAssetId === publication.event.target.value)
+        .sort((left, right) => (
+          left.toAssetId.localeCompare(right.toAssetId)
+          || left.kind.localeCompare(right.kind)
+          || left.id.localeCompare(right.id)
+        ));
+      for (const relationship of relationships) {
+        const marker = relationshipInformationId(publication.event.id, relationship);
+        if (appliedInformationIds.has(marker)) continue;
+        const impact = deriveRelationshipImpact(publication.event, relationship);
+        if (!impact) continue;
+        state = applyRelationshipExpectationImpact(state, impact);
+        state = { ...state, activeEvents: [...state.activeEvents, createRelationshipReactionEvent(publication.event, impact)] };
+        appliedInformationIds.add(marker);
+        relatedAssetIds.push(impact.targetAssetId);
+      }
+      if (relatedAssetIds.length > 0) {
+        publishedUpdate = { ...publishedUpdate, relatedAssetIds: [...new Set(relatedAssetIds)].sort() };
+        state = {
+          ...state,
+          stories: state.stories.map((candidate) => candidate.id === storyId
+            ? { ...candidate, updates: candidate.updates.map((candidateUpdate) => candidateUpdate.id === updateId ? publishedUpdate : candidateUpdate) }
+            : candidate)
+        };
+      }
     }
 
     function createDueStory(): void {

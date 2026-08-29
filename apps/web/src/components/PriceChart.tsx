@@ -90,7 +90,8 @@ export function PriceChart({ asset, samples, updates }: PriceChartProps) {
         )}
         {markers.map((marker) => {
           const x = PAD_X + marker.x * drawableWidth;
-          const markerLabel = `Public information: ${marker.update.title}. Published ${marker.update.publishedAt}.`;
+          const isRelatedCompany = marker.update.relatedAssetIds?.includes(asset.id);
+          const markerLabel = `${isRelatedCompany ? "Related company information" : "Public information"}: ${marker.update.title}. Published ${marker.update.publishedAt}.`;
           return (
             <g
               key={marker.update.id}

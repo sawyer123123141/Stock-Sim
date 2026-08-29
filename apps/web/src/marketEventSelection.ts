@@ -1,14 +1,23 @@
-import type { MarketEventSnapshot, MarketStorySnapshot } from "../../../packages/shared/src/index";
+import type { MarketEventSnapshot, MarketStorySnapshot, MarketStoryUpdateSnapshot } from "../../../packages/shared/src/index";
 
 export interface EventSelectableAsset {
   id: string;
   sector: string;
 }
 
-function relevanceForAsset(event: Pick<MarketEventSnapshot, "target">, asset: EventSelectableAsset): number {
-  if (event.target.kind === "asset") return event.target.value === asset.id ? 3 : 0;
+function relevanceForAsset(event: Pick<MarketEventSnapshot, "target"> & Partial<Pick<MarketStorySnapshot, "updates">>, asset: EventSelectableAsset): number {
+  if (event.target.kind === "asset") {
+    if (event.target.value === asset.id) return 4;
+    return event.updates?.some((update) => update.relatedAssetIds?.includes(asset.id)) ? 3 : 0;
+  }
   if (event.target.kind === "sector") return event.target.value === asset.sector ? 2 : 0;
   return 1;
+}
+
+export function isRelatedCompanyStory(story: MarketStorySnapshot, asset: EventSelectableAsset): boolean {
+  return story.target.kind === "asset"
+    && story.target.value !== asset.id
+    && story.updates.some((update) => update.relatedAssetIds?.includes(asset.id));
 }
 
 function storyPublicationTime(story: MarketStorySnapshot): string {
@@ -71,6 +80,19 @@ export function selectRelevantMarketStories(
       || left.story.id.localeCompare(right.story.id)
     ))
     .map((candidate) => candidate.story);
+}
+
+/** Chart markers only include public connected-company updates that affected this asset. */
+export function selectRelevantMarketStoryUpdates(
+  asset: EventSelectableAsset,
+  stories: MarketStorySnapshot[]
+): MarketStoryUpdateSnapshot[] {
+  return selectRelevantMarketStories(asset, stories).flatMap((story) => {
+    if (isRelatedCompanyStory(story, asset)) {
+      return story.updates.filter((update) => update.relatedAssetIds?.includes(asset.id));
+    }
+    return story.updates;
+  });
 }
 
 /** Full public history: developing stories first, then relevance and recency. */

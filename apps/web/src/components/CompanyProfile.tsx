@@ -18,6 +18,13 @@ const profiles: Record<string, { industry: string; description: string; identity
   }
 };
 
+const relationshipCopy = {
+  supplier: "Battery technology supplier",
+  customer: "Mobility customer",
+  partner: "Business partner",
+  competitor: "Industry competitor"
+} as const;
+
 export function CompanyProfile({ asset }: { asset: AssetSnapshot }) {
   const profile = profiles[asset.id];
   if (asset.kind !== "stock" || !profile) return null;
@@ -32,6 +39,14 @@ export function CompanyProfile({ asset }: { asset: AssetSnapshot }) {
       </dl>
       <p>{profile.description}</p>
       <p>{profile.identity}</p>
+      {asset.relationships && asset.relationships.length > 0 && <section className="company-connections" aria-label="Business connections">
+        <h3>BUSINESS CONNECTIONS</h3>
+        <ul>{asset.relationships.map((relationship) => <li key={`${relationship.assetId}-${relationship.kind}`}>
+          <strong>{relationship.name}</strong>
+          <span>{relationshipCopy[relationship.kind]}</span>
+          <small>{relationship.importance} relationship</small>
+        </li>)}</ul>
+      </section>}
     </section>
   );
 }

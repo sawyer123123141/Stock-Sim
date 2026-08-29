@@ -15,6 +15,7 @@ export type ReasonCode =
   | "momentum"
   | "demand"
   | "news"
+  | "relationship"
   | "noise";
 
 export interface MovementReason {
@@ -119,6 +120,24 @@ export interface MarketEvent {
   fundamentalImpact?: Partial<StockFundamentals>;
   /** Internal compatibility marker for event consequence semantics. */
   consequenceVersion?: 1;
+  /** Server-only origin metadata for a bounded connected-company reaction. */
+  relationship?: {
+    sourceAssetId: string;
+    sourceEventId: string;
+    kind: CompanyRelationshipKind;
+  };
+}
+
+export type CompanyRelationshipKind = "supplier" | "customer" | "competitor" | "partner";
+export type CompanyRelationshipImportance = "limited" | "meaningful" | "important";
+
+/** Static server-owned relationship direction: public information flows from `from` to `to`. */
+export interface CompanyRelationship {
+  id: string;
+  fromAssetId: string;
+  toAssetId: string;
+  kind: CompanyRelationshipKind;
+  influence: CompanyRelationshipImportance;
 }
 
 export type MarketStoryStatus = "developing" | "resolved";
@@ -144,6 +163,8 @@ export interface MarketStoryUpdate {
   significance?: EventSignificance;
   fundamentalImpact?: Partial<StockFundamentals>;
   reactsQuickly?: boolean;
+  /** Published-only public targets that actually received a relationship spillover. */
+  relatedAssetIds?: string[];
 }
 
 /** Server-only deterministic plan and published history for related updates. */
@@ -177,7 +198,17 @@ export interface AssetSnapshot {
   lastTickChangePct: number;
   marketRead: MarketReadSnapshot;
   research?: StockResearchSnapshot;
+  relationships?: CompanyRelationshipSnapshot[];
   reasons: MovementReasonSnapshot[];
+}
+
+/** Safe public summary of a known company connection. */
+export interface CompanyRelationshipSnapshot {
+  assetId: string;
+  name: string;
+  symbol: string;
+  kind: CompanyRelationshipKind;
+  importance: CompanyRelationshipImportance;
 }
 
 export interface MarketReadSnapshot {
@@ -217,6 +248,8 @@ export interface MarketStoryUpdateSnapshot {
   title: string;
   summary: string;
   publishedAt: string;
+  /** Already-public connected companies affected by this exact update. */
+  relatedAssetIds?: string[];
 }
 
 export interface MarketStorySnapshot {
@@ -246,6 +279,8 @@ export interface MovementContribution {
 export interface TickContext {
   demand: MarketPressure;
   eventEffect: number;
+  relationshipEffect?: number;
+  relationshipSourceName?: string;
   deltaMs: number;
 }
 

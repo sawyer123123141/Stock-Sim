@@ -128,7 +128,11 @@ test("a story update snapshots expectations only when its canonical publication 
   assert.equal(runtime.advanceTo(4_999).stories.length, 0);
   const firstPublic = runtime.advanceTo(5_000);
   assert.equal(firstPublic.stories[0].updates.length, 1);
-  assert.equal(runtime.recoveryState().marketState.activeEvents.length, 1);
+  assert.equal(
+    runtime.recoveryState().marketState.activeEvents.filter((event) => !event.relationship).length,
+    1,
+    "the published update still materializes exactly one primary event"
+  );
 
   const beforeSecond = runtime.recoveryState().marketState.stories[0].updates[1];
   assert.equal("expectedOutcome" in beforeSecond, false);
@@ -137,7 +141,12 @@ test("a story update snapshots expectations only when its canonical publication 
   const second = runtime.recoveryState().marketState.stories[0].updates[1];
   assert.equal(second.state, "published");
   assert.equal(second.expectedOutcome.demand, 0.8);
-  assert.deepEqual(runtime.recoveryState().appliedInformationIds, ["story-1:first", "story-1:second"]);
+  assert.deepEqual(runtime.recoveryState().appliedInformationIds, [
+    "story-1:first",
+    "relationship:story-1:first:nova-luma-customer:luma",
+    "story-1:second",
+    "relationship:story-1:second:nova-luma-customer:luma"
+  ]);
 });
 
 test("a pending update publishes before a same-time generated story snapshots expectations", () => {
@@ -174,7 +183,9 @@ test("a pending update publishes before a same-time generated story snapshots ex
   assert.equal(generatedDemandReaction.expectedOutcome.demand, 0.8);
   assert.deepEqual(runtime.recoveryState().appliedInformationIds, [
     "existing-story:update",
-    "story-1:demand"
+    "relationship:existing-story:update:nova-luma-customer:luma",
+    "story-1:demand",
+    "relationship:story-1:demand:nova-luma-customer:luma"
   ]);
 });
 

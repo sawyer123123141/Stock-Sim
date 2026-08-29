@@ -8,7 +8,8 @@ import type {
   MarketSnapshot,
   MarketState
 } from "../../shared/src/index.js";
-import { combinedEventEffect } from "./events.js";
+import { combinedPrimaryEventEffect, combinedRelationshipEventEffect, eventEffectForAsset } from "./events.js";
+import { companyRelationshipSnapshots } from "./companyRelationships.js";
 import { calculateMarketRead } from "./marketRead.js";
 import { toStockResearchSnapshot } from "./research.js";
 import type { RandomSource } from "./rng.js";
@@ -30,15 +31,16 @@ export function tickMarket(
     sequence: state.sequence + 1,
     activeEvents: state.activeEvents.filter((event) => event.expiresAt > nowMs),
     stories: state.stories ?? [],
-    assets: state.assets.map((asset) => tickAsset(
-      asset,
-      {
+    assets: state.assets.map((asset) => {
+      const relationshipSourceName = relatedCompanyName(state, asset, nowMs);
+      return tickAsset(asset, {
         demand: pressureByAsset[asset.id] ?? ZERO_PRESSURE,
-        eventEffect: combinedEventEffect(state.activeEvents, asset, nowMs),
+        eventEffect: combinedPrimaryEventEffect(state.activeEvents, asset, nowMs),
+        relationshipEffect: combinedRelationshipEventEffect(state.activeEvents, asset, nowMs),
+        ...(relationshipSourceName !== undefined ? { relationshipSourceName } : {}),
         deltaMs
-      },
-      rng
-    ).asset)
+      }, rng).asset;
+    })
   };
 }
 
@@ -62,6 +64,7 @@ export function toMarketSnapshot(
         lastTickChangePct: asset.lastTickChangePct,
         marketRead: marketReadByAsset[asset.id] ?? calculateMarketRead(asset, ZERO_PRESSURE),
         ...(research ? { research } : {}),
+        ...(asset.kind === "stock" ? { relationships: companyRelationshipSnapshots(asset, state.assets) } : {}),
         reasons: asset.reasons.map((reason) => ({
           code: reason.code,
           label: reason.label,
@@ -72,7 +75,7 @@ export function toMarketSnapshot(
       };
     }),
     events: state.activeEvents
-      .filter((event) => event.publishedAt <= generatedAtMs && event.expiresAt > generatedAtMs)
+      .filter((event) => !event.relationship && event.publishedAt <= generatedAtMs && event.expiresAt > generatedAtMs)
       .map(toMarketEventSnapshot),
     stories: toMarketStorySnapshots(state.stories ?? [], generatedAtMs)
   };
@@ -94,7 +97,8 @@ export function toMarketStorySnapshots(
         id: update.id,
         title: update.title,
         summary: update.summary,
-        publishedAt: new Date(update.publishedAt).toISOString()
+        publishedAt: new Date(update.publishedAt).toISOString(),
+        ...(update.relatedAssetIds?.length ? { relatedAssetIds: [...update.relatedAssetIds].sort() } : {})
       }));
     if (updates.length === 0) return [];
     return [{
@@ -105,6 +109,15 @@ export function toMarketStorySnapshots(
       updates
     }];
   });
+}
+
+function relatedCompanyName(state: MarketState, asset: MarketState["assets"][number], nowMs: number): string | undefined {
+  const event = state.activeEvents
+    .filter((candidate) => candidate.relationship && eventEffectForAsset(candidate, asset, nowMs) !== 0)
+    .sort((left, right) => Math.abs(eventEffectForAsset(right, asset, nowMs)) - Math.abs(eventEffectForAsset(left, asset, nowMs)))[0];
+  return event?.relationship
+    ? state.assets.find((candidate) => candidate.id === event.relationship?.sourceAssetId)?.name
+    : undefined;
 }
 
 function toMarketEventSnapshot(event: MarketEvent): MarketEventSnapshot {

@@ -18,7 +18,7 @@ import {
   marketChangeTone
 } from "./format";
 import { useMarketSession } from "./useMarketSession";
-import { selectRelevantMarketStories, selectRelevantMarketStory } from "./marketEventSelection";
+import { selectRelevantMarketStoryUpdates, selectRelevantMarketStory } from "./marketEventSelection";
 
 export function App() {
   const session = useMarketSession();
@@ -55,8 +55,7 @@ export function App() {
   const marketChange = describeMarketChange(asset.lastTickChangePct);
   const lastFill = session.lastTrade?.assetId === asset.id ? session.lastTrade : null;
   const selectedStory = selectRelevantMarketStory(asset, session.market.stories);
-  const relevantStoryUpdates = selectRelevantMarketStories(asset, session.market.stories)
-    .flatMap((story) => story.updates);
+  const relevantStoryUpdates = selectRelevantMarketStoryUpdates(asset, session.market.stories);
 
   return (
     <main className="app-shell">
