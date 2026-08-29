@@ -24,6 +24,29 @@ export interface MovementReason {
   summary: string;
 }
 
+/**
+ * Persistent stock-company qualities, normalized from -1 (extremely weak) to
+ * 1 (extremely strong). These are server-only simulation state for now.
+ */
+export interface StockFundamentals {
+  growth: number;
+  profitability: number;
+  financialHealth: number;
+  competitivePosition: number;
+  reputation: number;
+}
+
+/**
+ * The market's current normalized expectations for a stock, separate from its
+ * underlying fundamentals. These are server-only simulation state for now.
+ */
+export interface MarketExpectations {
+  growth: number;
+  profitability: number;
+  demand: number;
+  execution: number;
+}
+
 export interface AssetState {
   id: string;
   symbol: string;
@@ -37,6 +60,8 @@ export interface AssetState {
   momentum: number;
   sectorTrend: number;
   companyStrength?: number;
+  fundamentals?: StockFundamentals;
+  expectations?: MarketExpectations;
   reasons: MovementReason[];
 }
 

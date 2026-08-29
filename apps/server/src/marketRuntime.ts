@@ -8,6 +8,7 @@ import {
   createMarketEvent,
   createSeedMarket,
   createStatefulSeededRng,
+  hydrateMarketCompanyReality,
   tickMarket,
   toMarketSnapshot,
   type MarketReadByAsset,
@@ -71,7 +72,7 @@ const SYSTEM_SCHEDULER: MarketScheduler = {
 
 export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketRuntime {
   const recovery = options.recoveryState;
-  let state = recovery?.marketState ?? options.initialState ?? createSeedMarket();
+  let state = hydrateMarketCompanyReality(recovery?.marketState ?? options.initialState ?? createSeedMarket());
   const rng = createStatefulSeededRng(recovery?.rngState ?? options.seed ?? DEFAULT_SEED);
   const clock = options.clock ?? SYSTEM_CLOCK;
   const scheduler = options.scheduler ?? SYSTEM_SCHEDULER;
