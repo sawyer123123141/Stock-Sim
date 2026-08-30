@@ -12,6 +12,10 @@ export default async function handler(request: IncomingMessage, response: Server
   response.setHeader("content-type", "application/json");
   response.end(JSON.stringify(await hostedAuthority().getStoryHistory(
     decodeURIComponent(assetId),
-    url.searchParams.get("cursor") ?? undefined
+    {
+      ...(url.searchParams.get("cursor") ? { cursor: url.searchParams.get("cursor")! } : {}),
+      ...(url.searchParams.has("from") ? { fromMs: Number(url.searchParams.get("from")) } : {}),
+      ...(url.searchParams.has("to") ? { toMs: Number(url.searchParams.get("to")) } : {})
+    }
   )));
 }

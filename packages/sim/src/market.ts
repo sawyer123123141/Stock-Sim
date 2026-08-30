@@ -1,3 +1,4 @@
+import { RECENT_STORY_WINDOW_MS } from "../../shared/src/index.js";
 import type {
   MarketEvent,
   MarketEventSnapshot,
@@ -24,9 +25,6 @@ export type PressureByAsset = Readonly<Record<string, MarketPressure | undefined
 export type MarketReadByAsset = Readonly<Record<string, MarketReadSnapshot | undefined>>;
 
 const ZERO_PRESSURE: MarketPressure = { simulated: 0, player: 0 };
-
-/** Current context stays useful for several market developments without becoming a feed. */
-export const RECENT_STORY_WINDOW_MS = 30 * 60 * 1_000;
 
 export function tickMarket(
   state: MarketState,
@@ -61,6 +59,7 @@ export function toMarketSnapshot(
   return {
     sequence: state.sequence,
     generatedAt: new Date(generatedAtMs).toISOString(),
+    storyRecentWindowMs: RECENT_STORY_WINDOW_MS,
     assets: state.assets.map((asset) => {
       const research = toStockResearchSnapshot(asset);
       return {

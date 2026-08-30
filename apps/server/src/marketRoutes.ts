@@ -12,8 +12,8 @@ export function registerMarketRoutes(
   options: MarketRouteOptions
 ): void {
   app.get("/api/market", async () => options.runtime.snapshot());
-  app.get<{ Params: { assetId: string }; Querystring: { cursor?: string } }>("/api/stories/:assetId", async (request) => (
-    options.runtime.storyHistoryForAsset(request.params.assetId, request.query.cursor)
+  app.get<{ Params: { assetId: string }; Querystring: { cursor?: string; from?: string; to?: string } }>("/api/stories/:assetId", async (request) => (
+    options.runtime.storyHistoryForAsset(request.params.assetId, storyHistoryQuery(request.query))
   ));
 
   app.get("/ws/market", { websocket: true }, (socket) => {
@@ -32,4 +32,12 @@ export function registerMarketRoutes(
     socket.once("close", cleanup);
     socket.once("error", cleanup);
   });
+}
+
+function storyHistoryQuery(query: { cursor?: string; from?: string; to?: string }) {
+  return {
+    ...(query.cursor ? { cursor: query.cursor } : {}),
+    ...(query.from !== undefined ? { fromMs: Number(query.from) } : {}),
+    ...(query.to !== undefined ? { toMs: Number(query.to) } : {})
+  };
 }

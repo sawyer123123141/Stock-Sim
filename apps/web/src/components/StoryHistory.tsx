@@ -35,7 +35,7 @@ export function StoryHistory({ asset, stories }: { asset: AssetSnapshot; stories
 
   const loadOlder = () => {
     if (!nextCursor) return;
-    void fetchStoryHistory(asset.id, nextCursor)
+    void fetchStoryHistory(asset.id, { cursor: nextCursor })
       .then((page) => {
         setArchive((previous) => [...previous, ...page.stories.filter((story) => !previous.some((current) => current.id === story.id))]);
         setNextCursor(page.nextCursor);

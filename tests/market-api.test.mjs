@@ -63,3 +63,27 @@ test("GET /api/stories/:assetId returns only that asset's public archived histor
 
   await app.close();
 });
+
+test("GET /api/stories/:assetId bounds chart context to the requested public time range", async () => {
+  const seed = createSeedMarket();
+  const runtime = createMarketRuntime({
+    initialState: {
+      ...seed,
+      storyHistory: [{
+        id: "nova-chart-history",
+        title: "NOVA public history",
+        target: { kind: "asset", value: "nova" },
+        updates: [{ id: "inside", title: "Inside", summary: "Visible public update.", publishedAt: 5_000 }, {
+          id: "outside", title: "Outside", summary: "Outside the chart range.", publishedAt: 15_000
+        }]
+      }]
+    },
+    startedAtMs: 1_900_000
+  });
+  const app = buildMarketApp({ runtime });
+  const response = await app.inject({ method: "GET", url: "/api/stories/nova?from=4000&to=6000" });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json().stories[0]?.updates.map((update) => update.id), ["inside"]);
+  await app.close();
+});

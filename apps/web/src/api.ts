@@ -1,5 +1,6 @@
 import type {
   MarketSnapshot,
+  MarketStoryHistoryQuery,
   MarketStoryHistoryPage,
   MarketStorySnapshot,
   PortfolioSnapshot,
@@ -46,10 +47,14 @@ export function fetchPortfolio(): Promise<PortfolioSnapshot> {
   return requestJson<PortfolioSnapshot>("/api/portfolio");
 }
 
-/** Loads compact public archive context only when the player opens Stories. */
-export function fetchStoryHistory(assetId: string, cursor?: string): Promise<MarketStoryHistoryPage> {
-  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
-  return requestJson<MarketStoryHistoryPage>(`/api/stories/${encodeURIComponent(assetId)}${query}`);
+/** Loads bounded, public-only archive context for Stories or a visible chart range. */
+export function fetchStoryHistory(assetId: string, query: MarketStoryHistoryQuery = {}): Promise<MarketStoryHistoryPage> {
+  const params = new URLSearchParams();
+  if (query.cursor) params.set("cursor", query.cursor);
+  if (query.fromMs !== undefined) params.set("from", String(query.fromMs));
+  if (query.toMs !== undefined) params.set("to", String(query.toMs));
+  const suffix = params.size > 0 ? `?${params.toString()}` : "";
+  return requestJson<MarketStoryHistoryPage>(`/api/stories/${encodeURIComponent(assetId)}${suffix}`);
 }
 
 export function submitTrade(intent: TradeIntent): Promise<TradeExecutionResponse> {

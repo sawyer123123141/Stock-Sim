@@ -282,6 +282,16 @@ export interface MarketStorySnapshot {
 
 export type MarketStoryLifecycle = "developing" | "recent" | "archive";
 
+/** Server-owned lifecycle window, shared with the browser only to avoid needless archive requests. */
+export const RECENT_STORY_WINDOW_MS = 30 * 60 * 1_000;
+
+/** Optional bounded public history selection for a Stories page or visible chart range. */
+export interface MarketStoryHistoryQuery {
+  cursor?: string;
+  fromMs?: number;
+  toMs?: number;
+}
+
 /** Bounded public archive response for one selected asset. */
 export interface MarketStoryHistoryPage {
   stories: MarketStorySnapshot[];
@@ -291,6 +301,8 @@ export interface MarketStoryHistoryPage {
 export interface MarketSnapshot {
   sequence: number;
   generatedAt: string;
+  /** Server-owned time window used only to decide when visible charts need archive context. */
+  storyRecentWindowMs: number;
   assets: AssetSnapshot[];
   events: MarketEventSnapshot[];
   stories: MarketStorySnapshot[];

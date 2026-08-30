@@ -1,4 +1,4 @@
-import type { MarketEvent, MarketPressure, MarketSnapshot, MarketState, MarketStoryHistoryPage, MarketStorySnapshot, TradeSide } from "../../../packages/shared/src/index.js";
+import type { MarketEvent, MarketPressure, MarketSnapshot, MarketState, MarketStoryHistoryPage, MarketStoryHistoryQuery, MarketStorySnapshot, TradeSide } from "../../../packages/shared/src/index.js";
 import {
   EVENT_CADENCE_MS,
   calculateSimulatedInvestorPressure,
@@ -66,7 +66,7 @@ export interface MarketRuntime {
   recordPlayerTrade(assetId: string, side: TradeSide, quantity: number, executedAtMs: number): void;
   playerPressureForAsset(assetId: string, nowMs: number): number;
   simulatedPressureForAsset(assetId: string, nowMs: number): number;
-  storyHistoryForAsset(assetId: string, cursor?: string): MarketStoryHistoryPage;
+  storyHistoryForAsset(assetId: string, query?: MarketStoryHistoryQuery | string): MarketStoryHistoryPage;
   subscribe(listener: MarketSnapshotListener): () => void;
   start(): void;
   stop(): void;
@@ -298,11 +298,24 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
     );
   }
 
-  function storyHistoryForAsset(assetId: string, cursor?: string): MarketStoryHistoryPage {
+  function storyHistoryForAsset(assetId: string, input: MarketStoryHistoryQuery | string = {}): MarketStoryHistoryPage {
+    const query = typeof input === "string" ? { cursor: input } : input;
     const asset = state.assets.find((candidate) => candidate.id === assetId);
     if (!asset) return { stories: [] };
+    const timeRange = historyTimeRange(query);
+    if (timeRange === "invalid") return { stories: [] };
     const relevant = toMarketStoryHistorySnapshots(state.storyHistory ?? [], lastAdvancedAtMs)
       .filter((story) => story.lifecycle === "archive")
+      .map((story) => timeRange ? {
+        ...story,
+        updates: story.updates.filter((update) => {
+          const publishedAtMs = Date.parse(update.publishedAt);
+          return Number.isFinite(publishedAtMs)
+            && publishedAtMs >= timeRange.fromMs
+            && publishedAtMs <= timeRange.toMs;
+        })
+      } : story)
+      .filter((story) => story.updates.length > 0)
       .map((story) => ({ story, relevance: storyRelevance(story, assetId, asset.sector) }))
       .filter((candidate) => candidate.relevance > 0)
       .sort((left, right) => (
@@ -311,7 +324,7 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
         || left.story.id.localeCompare(right.story.id)
       ))
       .map((candidate) => candidate.story);
-    const cursorIndex = cursor ? relevant.findIndex((story) => story.id === cursor) : -1;
+    const cursorIndex = query.cursor ? relevant.findIndex((story) => story.id === query.cursor) : -1;
     const start = cursorIndex >= 0 ? cursorIndex + 1 : 0;
     const stories = relevant.slice(start, start + STORY_HISTORY_PAGE_SIZE);
     const finalStory = stories.at(-1);
@@ -361,6 +374,18 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
     stop,
     recoveryState
   };
+}
+
+function historyTimeRange(query: MarketStoryHistoryQuery): { fromMs: number; toMs: number } | null | "invalid" {
+  if (query.fromMs === undefined && query.toMs === undefined) return null;
+  if (
+    !Number.isFinite(query.fromMs)
+    || !Number.isFinite(query.toMs)
+    || query.fromMs === undefined
+    || query.toMs === undefined
+    || query.toMs < query.fromMs
+  ) return "invalid";
+  return { fromMs: query.fromMs, toMs: query.toMs };
 }
 
 function storyRelevance(story: MarketStorySnapshot, assetId: string, sector: string): number {

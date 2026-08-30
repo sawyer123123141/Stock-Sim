@@ -188,6 +188,59 @@ test("asset-scoped history returns only relevant public archive outside the live
   assert.doesNotMatch(JSON.stringify(history), /outcome|expectation|effect|reaction|fundamental|RNG/i);
 });
 
+test("asset-scoped history returns only public archived updates inside a requested chart range", async () => {
+  const session = createClockedAuthority();
+  session.store.state.runtime.marketState.storyHistory = [{
+    id: "luma-chart-context",
+    title: "LUMA battery update",
+    target: { kind: "asset", value: "luma" },
+    updates: [{
+      id: "luma-chart-context:inside",
+      title: "Published battery progress",
+      summary: "Public battery information affects NOVA's outlook.",
+      publishedAt: 5_000,
+      relatedAssetIds: ["nova"]
+    }, {
+      id: "luma-chart-context:outside",
+      title: "Later battery update",
+      summary: "This public update falls outside the visible chart window.",
+      publishedAt: 15_000,
+      relatedAssetIds: ["nova"]
+    }]
+  }, {
+    id: "hgrid-chart-context",
+    title: "Unrelated grid update",
+    target: { kind: "asset", value: "hgrid" },
+    updates: [{
+      id: "hgrid-chart-context:inside",
+      title: "Grid context",
+      summary: "This is unrelated to NOVA.",
+      publishedAt: 5_000
+    }]
+  }];
+
+  session.setNow(1_900_000);
+  const market = await session.authority.getMarket();
+  const context = await session.authority.getStoryHistory("nova", { fromMs: 4_000, toMs: 6_000 });
+
+  assert.equal(market.stories.some((story) => story.id === "luma-chart-context"), false);
+  assert.deepEqual(context, { stories: [{
+    id: "luma-chart-context",
+    title: "LUMA battery update",
+    target: { kind: "asset", value: "luma" },
+    status: "resolved",
+    lifecycle: "archive",
+    updates: [{
+      id: "luma-chart-context:inside",
+      title: "Published battery progress",
+      summary: "Public battery information affects NOVA's outlook.",
+      publishedAt: "1970-01-01T00:00:05.000Z",
+      relatedAssetIds: ["nova"]
+    }]
+  }] });
+  assert.doesNotMatch(JSON.stringify(context), /outside|outcome|expectation|effect|reaction|RNG/i);
+});
+
 test("asset-scoped history uses stable bounded pages without replaying live stories", async () => {
   const session = createClockedAuthority();
   session.store.state.runtime.marketState.storyHistory = Array.from({ length: 51 }, (_, index) => ({
@@ -202,8 +255,9 @@ test("asset-scoped history uses stable bounded pages without replaying live stor
     }]
   }));
 
-  const first = await session.authority.getStoryHistory("nova");
-  const second = await session.authority.getStoryHistory("nova", first.nextCursor);
+  const range = { fromMs: -1_900_000, toMs: -1_700_000 };
+  const first = await session.authority.getStoryHistory("nova", range);
+  const second = await session.authority.getStoryHistory("nova", { ...range, cursor: first.nextCursor });
 
   assert.equal(first.stories.length, 50);
   assert.equal(first.stories[0].id, "nova-archive-0");
