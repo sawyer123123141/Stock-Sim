@@ -100,7 +100,10 @@ export function toMarketStorySnapshots(
   history: MarketStoryHistory[] = []
 ): MarketStorySnapshot[] {
   const runtime = stories.flatMap((story) => toRuntimeStorySnapshot(story, generatedAtMs));
-  const compact = toMarketStoryHistorySnapshots(history, generatedAtMs);
+  const compact = toMarketStoryHistorySnapshots(
+    history.filter((story) => isRecentHistoryStory(story, generatedAtMs)),
+    generatedAtMs
+  );
   const runtimeIds = new Set(runtime.map((story) => story.id));
   return [...runtime, ...compact.filter((story) => !runtimeIds.has(story.id))]
     .filter((story) => story.lifecycle !== "archive");
@@ -140,7 +143,7 @@ function toPublicStorySnapshot(
   status: MarketStoryStatus,
   generatedAtMs: number
 ): MarketStorySnapshot {
-  const updates = story.updates
+  const updates = [...story.updates]
     .sort((left, right) => left.publishedAt - right.publishedAt || left.id.localeCompare(right.id))
     .map((update) => ({
       id: update.id,
@@ -157,6 +160,11 @@ function toPublicStorySnapshot(
     lifecycle: lifecycleFor(status, story.updates, generatedAtMs),
     updates
   };
+}
+
+function isRecentHistoryStory(story: MarketStoryHistory, generatedAtMs: number): boolean {
+  const latestPublishedAt = Math.max(...story.updates.map((update) => update.publishedAt));
+  return generatedAtMs - latestPublishedAt <= RECENT_STORY_WINDOW_MS;
 }
 
 function toHistoryUpdate(update: {

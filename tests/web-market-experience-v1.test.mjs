@@ -69,13 +69,19 @@ test("overview keeps qualitative market context compact, expandable, and separat
 });
 
 test("Stories history uses existing relevance helpers and keeps the full timeline public-only", async () => {
-  const [history, selection] = await Promise.all([
+  const [history, selection, api] = await Promise.all([
     text("apps/web/src/components/StoryHistory.tsx"),
-    text("apps/web/src/marketEventSelection.ts")
+    text("apps/web/src/marketEventSelection.ts"),
+    text("apps/web/src/api.ts")
   ]);
 
-  assert.match(history, /selectStoryHistory/);
+  assert.match(history, /selectStoryLifecycleGroups/);
+  assert.match(history, /fetchStoryHistory/);
+  assert.match(history, /DEVELOPING/);
+  assert.match(history, /RECENT/);
+  assert.match(history, /ARCHIVE/);
   assert.match(history, /story\.updates\.map/);
-  assert.match(selection, /selectStoryHistory/);
-  assert.match(selection, /status === "developing"/);
+  assert.match(selection, /selectStoryLifecycleGroups/);
+  assert.match(api, /fetchStoryHistory/);
+  assert.match(api, /\/api\/stories\//);
 });

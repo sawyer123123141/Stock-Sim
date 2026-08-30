@@ -141,3 +141,134 @@ test("recovery after a restart catches up on the same canonical timeline", async
 
   assert.deepEqual(session.store.state.runtime, uninterrupted);
 });
+
+test("asset-scoped history returns only relevant public archive outside the live market snapshot", async () => {
+  const session = createClockedAuthority();
+  session.store.state.runtime.marketState.storyHistory = [{
+    id: "luma-archive",
+    title: "LUMA scaling update",
+    target: { kind: "asset", value: "luma" },
+    updates: [{
+      id: "luma-archive:scaling",
+      title: "Commercial scaling details emerge",
+      summary: "The public update changes the battery supply outlook.",
+      publishedAt: -1_800_001,
+      relatedAssetIds: ["nova"]
+    }]
+  }, {
+    id: "hgrid-archive",
+    title: "Harvest Grid contract update",
+    target: { kind: "asset", value: "hgrid" },
+    updates: [{
+      id: "hgrid-archive:contract",
+      title: "Grid contract expands",
+      summary: "The public update is unrelated to NOVA.",
+      publishedAt: -1_800_001
+    }]
+  }];
+
+  const market = await session.authority.getMarket();
+  const history = await session.authority.getStoryHistory("nova");
+
+  assert.equal(market.stories.some((story) => story.id === "luma-archive"), false);
+  assert.deepEqual(history, { stories: [{
+    id: "luma-archive",
+    title: "LUMA scaling update",
+    target: { kind: "asset", value: "luma" },
+    status: "resolved",
+    lifecycle: "archive",
+    updates: [{
+      id: "luma-archive:scaling",
+      title: "Commercial scaling details emerge",
+      summary: "The public update changes the battery supply outlook.",
+      publishedAt: "1969-12-31T23:29:59.999Z",
+      relatedAssetIds: ["nova"]
+    }]
+  }] });
+  assert.doesNotMatch(JSON.stringify(history), /outcome|expectation|effect|reaction|fundamental|RNG/i);
+});
+
+test("asset-scoped history uses stable bounded pages without replaying live stories", async () => {
+  const session = createClockedAuthority();
+  session.store.state.runtime.marketState.storyHistory = Array.from({ length: 51 }, (_, index) => ({
+    id: `nova-archive-${index}`,
+    title: `NOVA archive ${index}`,
+    target: { kind: "asset", value: "nova" },
+    updates: [{
+      id: `nova-archive-${index}:public`,
+      title: `Public NOVA information ${index}`,
+      summary: "Public historical context.",
+      publishedAt: -1_800_001 - index
+    }]
+  }));
+
+  const first = await session.authority.getStoryHistory("nova");
+  const second = await session.authority.getStoryHistory("nova", first.nextCursor);
+
+  assert.equal(first.stories.length, 50);
+  assert.equal(first.stories[0].id, "nova-archive-0");
+  assert.equal(first.nextCursor, "nova-archive-49");
+  assert.deepEqual(second, {
+    stories: [expectArchiveStory(50)]
+  });
+});
+
+function expectArchiveStory(index) {
+  return {
+    id: `nova-archive-${index}`,
+    title: `NOVA archive ${index}`,
+    target: { kind: "asset", value: "nova" },
+    status: "resolved",
+    lifecycle: "archive",
+    updates: [{
+      id: `nova-archive-${index}:public`,
+      title: `Public NOVA information ${index}`,
+      summary: "Public historical context.",
+      publishedAt: new Date(-1_800_001 - index).toISOString()
+    }]
+  };
+}
+
+test("continuous, restarted, and dormant canonical catch-up reach the same story partition", async () => {
+  function session() {
+    const clocked = createClockedAuthority();
+    clocked.store.state.runtime.marketState.stories = [{
+      id: "story-partition",
+      title: "LUMA supply update",
+      target: { kind: "asset", value: "luma" },
+      status: "developing",
+      updates: [{
+        id: "story-partition:public",
+        title: "Supply update becomes public",
+        summary: "The battery supply outlook changes.",
+        publishedAt: 5_000,
+        state: "pending",
+        outcome: { execution: 0.8 },
+        significance: "major"
+      }]
+    }];
+    clocked.store.state.runtime.nextEventAtMs = 1_000_000;
+    return clocked;
+  }
+
+  const continuous = session();
+  continuous.setNow(5_000);
+  await continuous.authority.getMarket();
+  continuous.setNow(200_000);
+  await continuous.authority.getMarket();
+
+  const restarted = session();
+  restarted.setNow(5_000);
+  await restarted.authority.getMarket();
+  restarted.setNow(200_000);
+  await createPersistentGameAuthority(restarted.store, () => 200_000).getMarket();
+
+  const dormant = session();
+  dormant.setNow(200_000);
+  await dormant.authority.getMarket();
+
+  assert.deepEqual(restarted.store.state.runtime, continuous.store.state.runtime);
+  assert.deepEqual(dormant.store.state.runtime, continuous.store.state.runtime);
+  assert.equal(continuous.store.state.runtime.marketState.stories.length, 0);
+  assert.equal(continuous.store.state.runtime.marketState.storyHistory.length, 1);
+});

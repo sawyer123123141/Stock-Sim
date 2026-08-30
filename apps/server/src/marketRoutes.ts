@@ -12,6 +12,9 @@ export function registerMarketRoutes(
   options: MarketRouteOptions
 ): void {
   app.get("/api/market", async () => options.runtime.snapshot());
+  app.get<{ Params: { assetId: string }; Querystring: { cursor?: string } }>("/api/stories/:assetId", async (request) => (
+    options.runtime.storyHistoryForAsset(request.params.assetId, request.query.cursor)
+  ));
 
   app.get("/ws/market", { websocket: true }, (socket) => {
     const sendSnapshot = (snapshot: MarketSnapshot): void => {

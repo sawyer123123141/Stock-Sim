@@ -282,6 +282,12 @@ export interface MarketStorySnapshot {
 
 export type MarketStoryLifecycle = "developing" | "recent" | "archive";
 
+/** Bounded public archive response for one selected asset. */
+export interface MarketStoryHistoryPage {
+  stories: MarketStorySnapshot[];
+  nextCursor?: string;
+}
+
 export interface MarketSnapshot {
   sequence: number;
   generatedAt: string;

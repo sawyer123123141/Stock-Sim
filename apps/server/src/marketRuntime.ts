@@ -1,4 +1,4 @@
-import type { MarketEvent, MarketPressure, MarketSnapshot, MarketState, TradeSide } from "../../../packages/shared/src/index.js";
+import type { MarketEvent, MarketPressure, MarketSnapshot, MarketState, MarketStoryHistoryPage, MarketStorySnapshot, TradeSide } from "../../../packages/shared/src/index.js";
 import {
   EVENT_CADENCE_MS,
   calculateSimulatedInvestorPressure,
@@ -17,6 +17,7 @@ import {
   hydrateMarketCompanyReality,
   publishMarketStoryUpdate,
   tickMarket,
+  toMarketStoryHistorySnapshots,
   toMarketStoryHistory,
   toMarketSnapshot,
   type MarketReadByAsset,
@@ -65,6 +66,7 @@ export interface MarketRuntime {
   recordPlayerTrade(assetId: string, side: TradeSide, quantity: number, executedAtMs: number): void;
   playerPressureForAsset(assetId: string, nowMs: number): number;
   simulatedPressureForAsset(assetId: string, nowMs: number): number;
+  storyHistoryForAsset(assetId: string, cursor?: string): MarketStoryHistoryPage;
   subscribe(listener: MarketSnapshotListener): () => void;
   start(): void;
   stop(): void;
@@ -73,6 +75,7 @@ export interface MarketRuntime {
 
 const DEFAULT_SEED = 0x4d41524b;
 const DEFAULT_TICK_INTERVAL_MS = 5_000;
+const STORY_HISTORY_PAGE_SIZE = 50;
 const NO_PRESSURE: PressureByAsset = {};
 const SYSTEM_CLOCK: MarketClock = () => Date.now();
 const SYSTEM_SCHEDULER: MarketScheduler = {
@@ -295,6 +298,27 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
     );
   }
 
+  function storyHistoryForAsset(assetId: string, cursor?: string): MarketStoryHistoryPage {
+    const asset = state.assets.find((candidate) => candidate.id === assetId);
+    if (!asset) return { stories: [] };
+    const relevant = toMarketStoryHistorySnapshots(state.storyHistory ?? [], lastAdvancedAtMs)
+      .filter((story) => story.lifecycle === "archive")
+      .map((story) => ({ story, relevance: storyRelevance(story, assetId, asset.sector) }))
+      .filter((candidate) => candidate.relevance > 0)
+      .sort((left, right) => (
+        right.relevance - left.relevance
+        || latestPublicationMs(right.story) - latestPublicationMs(left.story)
+        || left.story.id.localeCompare(right.story.id)
+      ))
+      .map((candidate) => candidate.story);
+    const cursorIndex = cursor ? relevant.findIndex((story) => story.id === cursor) : -1;
+    const start = cursorIndex >= 0 ? cursorIndex + 1 : 0;
+    const stories = relevant.slice(start, start + STORY_HISTORY_PAGE_SIZE);
+    const finalStory = stories.at(-1);
+    const nextCursor = finalStory && start + stories.length < relevant.length ? finalStory.id : undefined;
+    return { stories, ...(nextCursor ? { nextCursor } : {}) };
+  }
+
   function start(): void {
     if (cancelScheduledTick) return;
     cancelScheduledTick = scheduler.every(tickIntervalMs, () => {
@@ -331,9 +355,23 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
     recordPlayerTrade,
     playerPressureForAsset,
     simulatedPressureForAsset,
+    storyHistoryForAsset,
     subscribe,
     start,
     stop,
     recoveryState
   };
+}
+
+function storyRelevance(story: MarketStorySnapshot, assetId: string, sector: string): number {
+  if (story.target.kind === "asset") {
+    if (story.target.value === assetId) return 4;
+    return story.updates.some((update) => update.relatedAssetIds?.includes(assetId)) ? 3 : 0;
+  }
+  if (story.target.kind === "sector") return story.target.value === sector ? 2 : 0;
+  return 1;
+}
+
+function latestPublicationMs(story: MarketStorySnapshot): number {
+  return Math.max(...story.updates.map((update) => Date.parse(update.publishedAt)));
 }

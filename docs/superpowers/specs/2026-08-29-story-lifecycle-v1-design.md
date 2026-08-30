@@ -31,7 +31,7 @@ There are three distinct projections:
 2. Compact history remains in the existing persisted game-state JSON for V1. It is deliberately shaped so it can later move to dedicated history storage without changing the public record meaning.
 3. A normal `MarketSnapshot` contains developing stories and a bounded time-based recent resolved set only. It never carries the full archive, so HTTP polling and WebSocket updates cannot grow indefinitely with market age.
 
-The server provides an asset-scoped public history endpoint for the Stories tab. It returns a deterministic page of relevant compact/public stories and exposes no private simulation information. The interface uses a simple cursor or limit boundary only when the archive exceeds one response; it keeps direct, sector, global, and already-public related-company relevance rules consistent with the live projection.
+The server provides an asset-scoped public history endpoint for the Stories tab. It returns a deterministic page of at most 50 relevant compact/public stories with the final story ID as an opaque continuation cursor when another page exists. It exposes no private simulation information and keeps direct, sector, global, and already-public related-company relevance rules consistent with the live projection.
 
 Chart markers continue to receive only the selected asset's relevant public updates. They use live/recent story data in the normal snapshot and request archive history only for the visible chart time range; the full archive is never required by the live market snapshot.
 

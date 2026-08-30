@@ -308,3 +308,46 @@ test("compact history projects archived public timestamps and related metadata w
   }]);
   assert.doesNotMatch(JSON.stringify(snapshots), /outcome|expectation|effect|reaction|RNG/i);
 });
+
+test("a developing story with a pending follow-up remains runtime-only and never enters public history", () => {
+  const runtime = createMarketRuntime({
+    initialState: {
+      ...createSeedMarket(),
+      stories: [{
+        id: "story-pending",
+        title: "LUMA details are developing",
+        target: { kind: "asset", value: "luma" },
+        status: "developing",
+        updates: [{
+          id: "story-pending:first",
+          title: "Technical details arrive",
+          summary: "The first public information is available.",
+          publishedAt: 5_000,
+          state: "pending",
+          outcome: { execution: 0.8 },
+          significance: "major"
+        }, {
+          id: "story-pending:future",
+          title: "Private future detail",
+          summary: "This cannot be public before publication.",
+          publishedAt: 65_000,
+          state: "pending",
+          outcome: { execution: -0.8 },
+          significance: "major"
+        }]
+      }]
+    },
+    startedAtMs: 0,
+    firstEventDelayMs: 1_000_000
+  });
+
+  const snapshot = runtime.advanceTo(10_000);
+  const recovered = runtime.recoveryState();
+
+  assert.equal(recovered.marketState.storyHistory.length, 0);
+  assert.equal(recovered.marketState.stories[0].updates[1].state, "pending");
+  assert.deepEqual(snapshot.stories.map((story) => ({ id: story.id, lifecycle: story.lifecycle })), [
+    { id: "story-pending", lifecycle: "developing" }
+  ]);
+  assert.doesNotMatch(JSON.stringify(snapshot.stories), /Private future|cannot be public|outcome|significance/i);
+});

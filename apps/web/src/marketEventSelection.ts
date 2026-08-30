@@ -27,6 +27,10 @@ function storyPublicationTime(story: MarketStorySnapshot): string {
   );
 }
 
+function lifecycleForStory(story: MarketStorySnapshot): "developing" | "recent" | "archive" {
+  return story.lifecycle ?? (story.status === "developing" ? "developing" : "recent");
+}
+
 export function selectRelevantMarketEvent(
   asset: EventSelectableAsset,
   events: MarketEventSnapshot[]
@@ -55,7 +59,7 @@ export function selectRelevantMarketStory(
 ): MarketStorySnapshot | null {
   const relevant = stories
     .map((story) => ({ story, relevance: relevanceForAsset(story, asset) }))
-    .filter((candidate) => candidate.relevance > 0);
+    .filter((candidate) => candidate.relevance > 0 && lifecycleForStory(candidate.story) !== "archive");
   const developing = relevant.filter((candidate) => candidate.story.status === "developing");
   const candidates = developing.length > 0 ? developing : relevant;
 
@@ -100,14 +104,29 @@ export function selectStoryHistory(
   asset: EventSelectableAsset,
   stories: MarketStorySnapshot[]
 ): MarketStorySnapshot[] {
-  return stories
-    .map((story) => ({ story, relevance: relevanceForAsset(story, asset) }))
-    .filter((candidate) => candidate.relevance > 0)
+  return selectRelevantMarketStories(asset, stories)
     .sort((left, right) => (
-      Number(right.story.status === "developing") - Number(left.story.status === "developing")
-      || right.relevance - left.relevance
-      || storyPublicationTime(right.story).localeCompare(storyPublicationTime(left.story))
-      || left.story.id.localeCompare(right.story.id)
-    ))
-    .map((candidate) => candidate.story);
+      Number(lifecycleForStory(right) === "developing") - Number(lifecycleForStory(left) === "developing")
+      || relevanceForAsset(right, asset) - relevanceForAsset(left, asset)
+      || storyPublicationTime(right).localeCompare(storyPublicationTime(left))
+      || left.id.localeCompare(right.id)
+    ));
+}
+
+export interface StoryLifecycleGroups {
+  developing: MarketStorySnapshot[];
+  recent: MarketStorySnapshot[];
+  archive: MarketStorySnapshot[];
+}
+
+/** Groups already-public relevant stories exactly once for the Stories panel. */
+export function selectStoryLifecycleGroups(
+  asset: EventSelectableAsset,
+  stories: MarketStorySnapshot[]
+): StoryLifecycleGroups {
+  const groups: StoryLifecycleGroups = { developing: [], recent: [], archive: [] };
+  for (const story of selectRelevantMarketStories(asset, stories)) {
+    groups[lifecycleForStory(story)].push(story);
+  }
+  return groups;
 }

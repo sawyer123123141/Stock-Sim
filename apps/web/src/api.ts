@@ -1,5 +1,7 @@
 import type {
   MarketSnapshot,
+  MarketStoryHistoryPage,
+  MarketStorySnapshot,
   PortfolioSnapshot,
   TradeExecutionResponse,
   TradeIntent,
@@ -42,6 +44,12 @@ export function fetchMarket(): Promise<MarketSnapshot> {
 
 export function fetchPortfolio(): Promise<PortfolioSnapshot> {
   return requestJson<PortfolioSnapshot>("/api/portfolio");
+}
+
+/** Loads compact public archive context only when the player opens Stories. */
+export function fetchStoryHistory(assetId: string, cursor?: string): Promise<MarketStoryHistoryPage> {
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+  return requestJson<MarketStoryHistoryPage>(`/api/stories/${encodeURIComponent(assetId)}${query}`);
 }
 
 export function submitTrade(intent: TradeIntent): Promise<TradeExecutionResponse> {
