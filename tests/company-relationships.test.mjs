@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   COMPANY_RELATIONSHIPS,
+  createMarketStory,
   createSeedMarket,
   deriveRelationshipImpact,
   applyRelationshipExpectationImpact,
@@ -10,15 +11,7 @@ import {
 import { createMarketRuntime } from "../dist/apps/server/src/marketRuntime.js";
 import { createInitialGameState, createPersistentGameAuthority } from "../dist/apps/server/src/persistentGameAuthority.js";
 
-const EXPECTATION_DIMENSIONS = ["growth", "profitability", "demand", "execution"];
-
-function mirroredExpectedOutcome(outcome) {
-  return Object.fromEntries(EXPECTATION_DIMENSIONS.flatMap((dimension) => (
-    typeof outcome[dimension] === "number" ? [[dimension, -outcome[dimension]]] : []
-  )));
-}
-
-function sourceEvent(outcome) {
+function sourceEvent(outcome, expectedOutcome = {}) {
   return {
     id: "story-1:breakthrough",
     title: "Published information",
@@ -29,7 +22,7 @@ function sourceEvent(outcome) {
     expiresAt: 155_000,
     target: { kind: "asset", value: "luma" },
     outcome,
-    expectedOutcome: mirroredExpectedOutcome(outcome),
+    expectedOutcome,
     significance: "major",
     consequenceVersion: 1
   };
@@ -48,11 +41,14 @@ test("the initial relationship network is directional and limited to the establi
   ]);
 });
 
-test("a published supplier beat creates smaller same-direction NOVA execution and growth expectations", () => {
+test("a published supplier breakthrough uses execution information relative to expectations and absolute technology information", () => {
   const relationship = COMPANY_RELATIONSHIPS.find((candidate) => candidate.id === "luma-nova-supplier");
-  const impact = deriveRelationshipImpact(sourceEvent({ execution: 0.8, growth: 0.9, competitivePosition: 0.9 }), relationship);
+  const impact = deriveRelationshipImpact(
+    sourceEvent({ execution: 0.8, competitivePosition: 0.9 }, { execution: 0.4 }),
+    relationship
+  );
 
-  assert.deepEqual(impact.expectationDeltas, { execution: 0.112, growth: 0.07056 });
+  assert.deepEqual(impact.expectationDeltas, { execution: 0.056, growth: 0.07056 });
   assert.ok(impact.reactionEffect > 0);
   assert.ok(Math.abs(impact.reactionEffect) < 0.45);
   assert.equal(impact.targetAssetId, "nova");
@@ -65,28 +61,59 @@ test("customer, competitor, and partner surprise rules remain directional and sp
   const partner = { id: "partner", fromAssetId: "alpha", toAssetId: "beta", kind: "partner", influence: "limited" };
 
   assert.deepEqual(
-    deriveRelationshipImpact({ ...sourceEvent({ demand: 0.75, profitability: 1 }), target: { kind: "asset", value: "nova" } }, customer).expectationDeltas,
-    { demand: 0.105 }
+    deriveRelationshipImpact({ ...sourceEvent({ demand: 0.75, profitability: 1 }, { demand: 0.25 }), target: { kind: "asset", value: "nova" } }, customer).expectationDeltas,
+    { demand: 0.07 }
   );
   assert.deepEqual(
-    deriveRelationshipImpact({ ...sourceEvent({ growth: 0.8, demand: 0.6, profitability: 1 }), target: { kind: "asset", value: "alpha" } }, competitor).expectationDeltas,
-    { demand: -0.156 }
+    deriveRelationshipImpact({ ...sourceEvent({ competitivePosition: 0.8, demand: 0.6, profitability: 1 }, { demand: 0 }), target: { kind: "asset", value: "alpha" } }, competitor).expectationDeltas,
+    { demand: -0.204 }
   );
   assert.deepEqual(
-    deriveRelationshipImpact({ ...sourceEvent({ execution: -0.7, growth: 0.8, demand: 1 }), target: { kind: "asset", value: "alpha" } }, partner).expectationDeltas,
-    { execution: -0.0448, growth: 0.03584 }
+    deriveRelationshipImpact({ ...sourceEvent({ execution: -0.7, growth: 0.8, demand: 1 }, { execution: -0.1, growth: 0.3 }), target: { kind: "asset", value: "alpha" } }, partner).expectationDeltas,
+    { execution: -0.0384, growth: 0.0224 }
   );
+});
+
+test("relationship interpretation follows dimension-level expectation surprises rather than absolute outcomes", () => {
+  const supplier = { id: "supplier", fromAssetId: "alpha", toAssetId: "beta", kind: "supplier", influence: "meaningful" };
+  const eventForAlpha = (outcome, expectedOutcome) => ({ ...sourceEvent(outcome, expectedOutcome), target: { kind: "asset", value: "alpha" } });
+  const belowExpectations = deriveRelationshipImpact(eventForAlpha({ execution: 0.25 }, { execution: 0.75 }), supplier);
+  const aboveExpectations = deriveRelationshipImpact(eventForAlpha({ execution: 0.25 }, { execution: 0.1 }), supplier);
+  const matchedExpectations = deriveRelationshipImpact(eventForAlpha({ execution: 0.25 }, { execution: 0.25 }), supplier);
+  const nearlyMatchedExpectations = deriveRelationshipImpact(eventForAlpha({ execution: 0.25 }, { execution: 0.24 }), supplier);
+
+  assert.deepEqual(belowExpectations.expectationDeltas, { execution: -0.07 });
+  assert.ok(belowExpectations.reactionEffect < 0, "a positive absolute execution result can still disappoint");
+  assert.deepEqual(aboveExpectations.expectationDeltas, { execution: 0.021 });
+  assert.ok(aboveExpectations.reactionEffect > 0);
+  assert.equal(matchedExpectations, null, "information that exactly meets expectations has no supplier spillover");
+  assert.deepEqual(nearlyMatchedExpectations.expectationDeltas, { execution: 0.0014 });
+  assert.ok(Math.abs(nearlyMatchedExpectations.reactionEffect) < 0.002, "a near match creates only a negligible temporary reaction");
+});
+
+test("non-expectation dimensions remain explicit while mixed information stays relationship-specific", () => {
+  const supplier = { id: "supplier", fromAssetId: "alpha", toAssetId: "beta", kind: "supplier", influence: "meaningful" };
+  const customer = { id: "customer", fromAssetId: "alpha", toAssetId: "gamma", kind: "customer", influence: "meaningful" };
+  const competitivePosition = deriveRelationshipImpact({ ...sourceEvent({ competitivePosition: 0.8 }), target: { kind: "asset", value: "alpha" } }, supplier);
+  const mixed = { ...sourceEvent({ execution: 0.25, demand: 0.8 }, { execution: 0.65, demand: 0.3 }), target: { kind: "asset", value: "alpha" }, effect: -0.45 };
+  const supplierImpact = deriveRelationshipImpact(mixed, supplier);
+  const customerImpact = deriveRelationshipImpact(mixed, customer);
+
+  assert.deepEqual(competitivePosition.expectationDeltas, { growth: 0.06272 });
+  assert.ok(competitivePosition.reactionEffect > 0);
+  assert.ok(supplierImpact.reactionEffect < 0, "supplier interpretation follows the execution miss");
+  assert.ok(customerImpact.reactionEffect > 0, "customer interpretation follows the demand beat despite the primary event sign");
 });
 
 test("relationship application changes only the connected stock expectations and never its fundamentals", () => {
   const state = createSeedMarket();
   const relationship = COMPANY_RELATIONSHIPS.find((candidate) => candidate.id === "luma-nova-supplier");
   const before = structuredClone(state.assets.find((asset) => asset.id === "nova"));
-  const impact = deriveRelationshipImpact(sourceEvent({ execution: 0.8 }), relationship);
+  const impact = deriveRelationshipImpact(sourceEvent({ execution: 0.8 }, { execution: 0.4 }), relationship);
   const after = applyRelationshipExpectationImpact(state, impact).assets.find((asset) => asset.id === "nova");
 
   assert.deepEqual(after.fundamentals, before.fundamentals);
-  assert.equal(after.expectations.execution, before.expectations.execution + 0.112);
+  assert.equal(after.expectations.execution, before.expectations.execution + 0.056);
   assert.equal(after.expectations.growth, before.expectations.growth);
 });
 
@@ -148,6 +175,42 @@ function runtimeAsset(runtime, assetId) {
   assert.ok(asset);
   return asset;
 }
+
+test("the real LUMA scaling follow-up carries its execution miss through to NOVA", () => {
+  const seed = createSeedMarket();
+  const story = createMarketStory({
+    id: "luma-breakthrough",
+    publishedAt: 5_000,
+    rng: () => 0.25,
+    assets: seed.assets
+  });
+  assert.equal(story.title, "LUMA battery breakthrough");
+
+  const runtime = createMarketRuntime({
+    initialState: { ...seed, stories: [story] },
+    startedAtMs: 0,
+    seed: 101,
+    firstEventDelayMs: 60_000
+  });
+  const initialNOVA = structuredClone(runtimeAsset(runtime, "nova"));
+
+  runtime.advanceTo(5_000);
+  const afterDemonstration = structuredClone(runtimeAsset(runtime, "nova"));
+  const demonstration = runtime.recoveryState().marketState.activeEvents.find((event) => event.id === "luma-breakthrough:demonstration");
+  assert.ok(demonstration.effect > 0);
+  assert.ok(afterDemonstration.expectations.growth > initialNOVA.expectations.growth);
+  assert.deepEqual(afterDemonstration.fundamentals, initialNOVA.fundamentals);
+
+  runtime.advanceTo(65_000);
+  const afterScaling = runtimeAsset(runtime, "nova");
+  const scaling = runtime.recoveryState().marketState.activeEvents.find((event) => event.id === "luma-breakthrough:scaling");
+  const relatedScaling = runtime.recoveryState().marketState.activeEvents.find((event) => event.relationship?.sourceEventId === "luma-breakthrough:scaling");
+
+  assert.ok(scaling.effect < 0, "the real LUMA scaling update misses the high expectations captured at publication");
+  assert.ok(afterScaling.expectations.execution < afterDemonstration.expectations.execution, "NOVA reads the positive-looking execution value as disappointing supplier information");
+  assert.ok(relatedScaling.effect < 0, "the temporary NOVA reaction follows the supplier execution miss");
+  assert.deepEqual(afterScaling.fundamentals, initialNOVA.fundamentals);
+});
 
 test("a pending LUMA update creates no NOVA spillover until publication, then applies it once without recursion", () => {
   const runtime = runtimeWithLumaStory();
@@ -212,7 +275,7 @@ test("a LUMA scaling miss weakens NOVA execution expectations without changing N
   runtime.advanceTo(5_000);
   const nova = runtimeAsset(runtime, "nova");
 
-  assert.equal(nova.expectations.execution, before.expectations.execution - 0.098);
+  assert.equal(nova.expectations.execution, before.expectations.execution - 0.14);
   assert.deepEqual(nova.fundamentals, before.fundamentals);
 });
 
@@ -222,7 +285,7 @@ test("a NOVA demand beat improves LUMA demand expectations as a smaller customer
   runtime.advanceTo(5_000);
   const luma = runtimeAsset(runtime, "luma");
 
-  assert.equal(luma.expectations.demand, before.expectations.demand + 0.0105);
+  assert.equal(luma.expectations.demand, before.expectations.demand + 0.021);
   assert.deepEqual(luma.fundamentals, before.fundamentals);
 });
 
