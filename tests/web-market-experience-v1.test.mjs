@@ -46,6 +46,25 @@ test("Market Read and Why the Move use concise qualitative disclosure", async ()
   assert.match(header, /NEXT OBJECTIVE/);
 });
 
+test("overview keeps qualitative market context compact, expandable, and separate from public stories", async () => {
+  const [app, marketRead, movement, header] = await Promise.all([
+    text("apps/web/src/App.tsx"),
+    text("apps/web/src/components/MarketRead.tsx"),
+    text("apps/web/src/components/MovementStory.tsx"),
+    text("apps/web/src/components/MarketHeader.tsx")
+  ]);
+
+  assert.match(marketRead, /MARKET READ/);
+  assert.doesNotMatch(marketRead, /pressure:\s*\{|pricedExpectations|fundamentals|reactionEffect|RNG/i);
+  assert.match(movement, /More context/);
+  assert.match(movement, /aria-expanded/);
+  assert.match(movement, /asset\.reasons\.slice\(0, 3\)/);
+  assert.match(movement, /reason\.summary/);
+  assert.ok(app.indexOf("<MovementStory") < app.indexOf("<NewsStory"), "current movement context and public story history remain separate overview surfaces");
+  assert.match(header, /objective-chip/);
+  assert.equal((app.match(/<NextObjective/g) ?? []).length, 0);
+});
+
 test("Stories history uses existing relevance helpers and keeps the full timeline public-only", async () => {
   const [history, selection] = await Promise.all([
     text("apps/web/src/components/StoryHistory.tsx"),
