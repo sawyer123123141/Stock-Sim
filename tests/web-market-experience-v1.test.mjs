@@ -47,11 +47,12 @@ test("Market Read and Why the Move use concise qualitative disclosure", async ()
 });
 
 test("overview keeps qualitative market context compact, expandable, and separate from public stories", async () => {
-  const [app, marketRead, movement, header] = await Promise.all([
+  const [app, marketRead, movement, header, styles] = await Promise.all([
     text("apps/web/src/App.tsx"),
     text("apps/web/src/components/MarketRead.tsx"),
     text("apps/web/src/components/MovementStory.tsx"),
-    text("apps/web/src/components/MarketHeader.tsx")
+    text("apps/web/src/components/MarketHeader.tsx"),
+    text("apps/web/src/styles.css")
   ]);
 
   assert.match(marketRead, /MARKET READ/);
@@ -60,6 +61,8 @@ test("overview keeps qualitative market context compact, expandable, and separat
   assert.match(movement, /aria-expanded/);
   assert.match(movement, /asset\.reasons\.slice\(0, 3\)/);
   assert.match(movement, /reason\.summary/);
+  assert.match(styles, /\.movement-context-action \{[^}]*grid-column: 1/);
+  assert.match(styles, /\.movement-story > button > b \{[^}]*grid-column: 2/);
   assert.ok(app.indexOf("<MovementStory") < app.indexOf("<NewsStory"), "current movement context and public story history remain separate overview surfaces");
   assert.match(header, /objective-chip/);
   assert.equal((app.match(/<NextObjective/g) ?? []).length, 0);
