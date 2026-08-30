@@ -5,22 +5,29 @@ import {
   classifyMarketMovement,
   classifyCompanyResearch,
   createSeedMarket,
+  toFocusedStockResearchBrief,
   toMarketSnapshot
 } from "../dist/packages/sim/src/index.js";
 
-test("every stock receives qualitative research while crypto receives none", () => {
-  const snapshot = toMarketSnapshot(createSeedMarket(), 1_000);
-  const stocks = snapshot.assets.filter((asset) => asset.kind === "stock");
-  const crypto = snapshot.assets.filter((asset) => asset.kind === "crypto");
+test("shared MarketSnapshot omits qualitative research while a focused stock brief keeps broad labels", () => {
+  const market = createSeedMarket();
+  const snapshot = toMarketSnapshot(market, 1_000);
+  const nova = market.assets.find((asset) => asset.id === "nova");
+  const pulse = market.assets.find((asset) => asset.id === "pulse");
+  assert.ok(nova);
+  assert.ok(pulse);
+  const brief = toFocusedStockResearchBrief(nova, market.assets);
 
-  assert.ok(stocks.every((asset) => asset.research));
-  assert.ok(crypto.every((asset) => asset.research === undefined));
-  assert.deepEqual(Object.keys(stocks[0].research.company).sort(), [
+  assert.ok(snapshot.assets.every((asset) => !("research" in asset)));
+  assert.ok(brief);
+  assert.equal(toFocusedStockResearchBrief(pulse, market.assets), undefined);
+  assert.deepEqual(Object.keys(brief.company).sort(), [
     "competitivePosition", "financialHealth", "growth", "profitability", "reputation"
   ]);
-  assert.deepEqual(Object.keys(stocks[0].research.expectations).sort(), [
+  assert.deepEqual(Object.keys(brief.expectations).sort(), [
     "demand", "execution", "growth", "profitability"
   ]);
+  assert.doesNotMatch(JSON.stringify(brief), /fundamentals|pricingState|pricedExpectations|weight|effect|RNG/i);
 });
 
 test("public market experience snapshots keep raw company and movement internals private", () => {
@@ -31,8 +38,7 @@ test("public market experience snapshots keep raw company and movement internals
   };
   const publicJson = JSON.stringify(toMarketSnapshot(market, 1_000));
 
-  assert.doesNotMatch(publicJson, /fundamentals|pricingState|pricedExpectations|weight|0\.002|companyStrength/);
-  assert.match(publicJson, /research/);
+  assert.doesNotMatch(publicJson, /fundamentals|pricingState|pricedExpectations|weight|0\.002|companyStrength|research/);
   assert.match(publicJson, /strength/);
 });
 
@@ -52,8 +58,11 @@ test("changing one hidden fundamental or expectation only changes its matching q
   const changed = structuredClone(base);
   changed.assets[0].fundamentals.growth = -0.8;
   changed.assets[0].expectations.demand = -0.9;
-  const before = toMarketSnapshot(base, 1_000).assets[0].research;
-  const after = toMarketSnapshot(changed, 1_000).assets[0].research;
+  const before = toFocusedStockResearchBrief(base.assets[0], base.assets);
+  const after = toFocusedStockResearchBrief(changed.assets[0], changed.assets);
+
+  assert.ok(before);
+  assert.ok(after);
 
   assert.notEqual(after.company.growth, before.company.growth);
   assert.notEqual(after.expectations.demand, before.expectations.demand);

@@ -216,7 +216,6 @@ export interface AssetSnapshot {
   price: number;
   lastTickChangePct: number;
   marketRead: MarketReadSnapshot;
-  research?: StockResearchSnapshot;
   relationships?: CompanyRelationshipSnapshot[];
   reasons: MovementReasonSnapshot[];
 }
