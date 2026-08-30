@@ -6,6 +6,7 @@ import type {
   TradingErrorCode
 } from "../../../packages/shared/src/index.js";
 import type { MarketRuntime } from "./marketRuntime.js";
+import { markFirstStockPurchase } from "./playerResearch.js";
 import type { PortfolioState, PortfolioStore } from "./portfolioStore.js";
 
 export class TradingError extends Error {
@@ -158,6 +159,9 @@ export function createTradingService(options: TradingServiceOptions): TradingSer
         position.quantity += intent.quantity;
         position.costBasisCents += totalCents;
         portfolio.positions[asset.id] = position;
+        if (asset.kind === "stock" && position.quantity > 0) {
+          portfolio.research = markFirstStockPurchase(portfolio.research);
+        }
       } else {
         if (!existing || existing.quantity < intent.quantity) {
           throw new TradingError("INSUFFICIENT_HOLDINGS", "Not enough units to sell.");

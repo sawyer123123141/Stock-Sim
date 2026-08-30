@@ -1,4 +1,4 @@
-import type { MarketEvent, MarketPressure, MarketSnapshot, MarketState, MarketStoryHistoryPage, MarketStoryHistoryQuery, MarketStorySnapshot, TradeSide } from "../../../packages/shared/src/index.js";
+import type { FocusedStockResearchBrief, MarketEvent, MarketPressure, MarketSnapshot, MarketState, MarketStoryHistoryPage, MarketStoryHistoryQuery, MarketStorySnapshot, TradeSide } from "../../../packages/shared/src/index.js";
 import {
   EVENT_CADENCE_MS,
   calculateSimulatedInvestorPressure,
@@ -20,6 +20,7 @@ import {
   toMarketStoryHistorySnapshots,
   toMarketStoryHistory,
   toMarketSnapshot,
+  toFocusedStockResearchBrief,
   type MarketReadByAsset,
   type PressureByAsset
 } from "../../../packages/sim/src/index.js";
@@ -66,6 +67,7 @@ export interface MarketRuntime {
   recordPlayerTrade(assetId: string, side: TradeSide, quantity: number, executedAtMs: number): void;
   playerPressureForAsset(assetId: string, nowMs: number): number;
   simulatedPressureForAsset(assetId: string, nowMs: number): number;
+  researchBriefForAsset(assetId: string): FocusedStockResearchBrief | undefined;
   storyHistoryForAsset(assetId: string, query?: MarketStoryHistoryQuery | string): MarketStoryHistoryPage;
   subscribe(listener: MarketSnapshotListener): () => void;
   start(): void;
@@ -298,6 +300,11 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
     );
   }
 
+  function researchBriefForAsset(assetId: string): FocusedStockResearchBrief | undefined {
+    const asset = state.assets.find((candidate) => candidate.id === assetId);
+    return asset ? toFocusedStockResearchBrief(asset, state.assets) : undefined;
+  }
+
   function storyHistoryForAsset(assetId: string, input: MarketStoryHistoryQuery | string = {}): MarketStoryHistoryPage {
     const query = typeof input === "string" ? { cursor: input } : input;
     const asset = state.assets.find((candidate) => candidate.id === assetId);
@@ -368,6 +375,7 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
     recordPlayerTrade,
     playerPressureForAsset,
     simulatedPressureForAsset,
+    researchBriefForAsset,
     storyHistoryForAsset,
     subscribe,
     start,
