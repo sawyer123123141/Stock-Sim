@@ -3,7 +3,7 @@ import type { AssetSnapshot, MarketStoryUpdateSnapshot } from "../../../../packa
 import { fetchStoryHistory } from "../api";
 import { describeMarketChange, formatMoney, marketChangeTone } from "../format";
 import { selectRelevantMarketStoryUpdates } from "../marketEventSelection";
-import { mergeChartStoryUpdates, selectChartArchiveRequest, selectChartSamplePositions, selectChartStoryMarkers } from "../priceChartMarkers";
+import { chartArchiveScopeKey, mergeChartStoryUpdates, selectChartArchiveRequest, selectChartSamplePositions, selectChartStoryMarkers, selectScopedChartArchiveUpdates, type ChartArchiveUpdateContext } from "../priceChartMarkers";
 import type { PriceSample } from "../useMarketSession";
 
 export interface PriceChartProps {
@@ -20,28 +20,35 @@ const PAD_Y = 32;
 
 export function PriceChart({ asset, samples, updates, recentStoryWindowMs }: PriceChartProps) {
   const [activeMarkerId, setActiveMarkerId] = useState<string | null>(null);
-  const [archivedUpdates, setArchivedUpdates] = useState<MarketStoryUpdateSnapshot[]>([]);
+  const [archiveContext, setArchiveContext] = useState<ChartArchiveUpdateContext | null>(null);
   const archiveRequest = useMemo(
     () => selectChartArchiveRequest(samples, recentStoryWindowMs),
     [recentStoryWindowMs, samples]
   );
+  const archiveScopeKey = useMemo(
+    () => chartArchiveScopeKey(asset.id, archiveRequest),
+    [archiveRequest?.fromMs, archiveRequest?.toMs, asset.id]
+  );
 
   useEffect(() => {
     let cancelled = false;
-    if (!archiveRequest) {
-      setArchivedUpdates([]);
+    if (!archiveRequest || !archiveScopeKey) {
+      setArchiveContext(null);
       return () => { cancelled = true; };
     }
     const selectedAsset = { id: asset.id, sector: asset.sector };
     void fetchStoryHistory(selectedAsset.id, archiveRequest)
       .then((page) => {
-        if (!cancelled) setArchivedUpdates(selectRelevantMarketStoryUpdates(selectedAsset, page.stories));
+        if (!cancelled) setArchiveContext({
+          scopeKey: archiveScopeKey,
+          updates: selectRelevantMarketStoryUpdates(selectedAsset, page.stories)
+        });
       })
       .catch(() => {
-        if (!cancelled) setArchivedUpdates([]);
+        if (!cancelled) setArchiveContext(null);
       });
     return () => { cancelled = true; };
-  }, [archiveRequest?.fromMs, archiveRequest?.toMs, asset.id, asset.sector]);
+  }, [archiveRequest?.fromMs, archiveRequest?.toMs, archiveScopeKey, asset.id, asset.sector]);
 
   const prices = samples.length > 0 ? samples.map((point) => point.price) : [asset.price];
   const rawMin = Math.min(...prices);
@@ -56,8 +63,8 @@ export function PriceChart({ asset, samples, updates, recentStoryWindowMs }: Pri
   const hasLine = samples.length >= 2;
   const samplePositions = selectChartSamplePositions(samples);
   const markerUpdates = useMemo(
-    () => mergeChartStoryUpdates(updates, archivedUpdates),
-    [archivedUpdates, updates]
+    () => mergeChartStoryUpdates(updates, selectScopedChartArchiveUpdates(archiveScopeKey, archiveContext)),
+    [archiveContext, archiveScopeKey, updates]
   );
   const markers = selectChartStoryMarkers(samples, markerUpdates);
   const activeMarker = markers.find((marker) => marker.update.id === activeMarkerId) ?? null;

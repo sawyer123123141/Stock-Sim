@@ -15,6 +15,11 @@ interface ChartTimeRange {
   lastAtMs: number;
 }
 
+export interface ChartArchiveUpdateContext {
+  scopeKey: string;
+  updates: MarketStoryUpdateSnapshot[];
+}
+
 /** Coarser than the five-second live cadence so chart context does not refetch per tick. */
 const CHART_ARCHIVE_REQUEST_GRANULARITY_MS = 60_000;
 
@@ -67,6 +72,25 @@ export function selectChartArchiveRequest(
     fromMs: Math.floor(range.firstAtMs / CHART_ARCHIVE_REQUEST_GRANULARITY_MS) * CHART_ARCHIVE_REQUEST_GRANULARITY_MS,
     toMs: Math.ceil(range.lastAtMs / CHART_ARCHIVE_REQUEST_GRANULARITY_MS) * CHART_ARCHIVE_REQUEST_GRANULARITY_MS
   };
+}
+
+/** A fetched archive page belongs only to the asset and rounded visible range that requested it. */
+export function chartArchiveScopeKey(assetId: string, request: MarketStoryHistoryQuery | null): string | null {
+  if (
+    !assetId
+    || !request
+    || !Number.isFinite(request.fromMs)
+    || !Number.isFinite(request.toMs)
+  ) return null;
+  return `${assetId}:${request.fromMs}:${request.toMs}`;
+}
+
+/** Ignores stale archive data during render before an effect can clear or replace it. */
+export function selectScopedChartArchiveUpdates(
+  currentScopeKey: string | null,
+  context: ChartArchiveUpdateContext | null
+): MarketStoryUpdateSnapshot[] {
+  return currentScopeKey && context?.scopeKey === currentScopeKey ? context.updates : [];
 }
 
 /** Preserves the live copy when the same public update crosses the lifecycle boundary. */

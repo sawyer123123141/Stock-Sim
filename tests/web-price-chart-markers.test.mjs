@@ -52,6 +52,28 @@ async function mergeUpdates(live, archived) {
   return JSON.parse(stdout);
 }
 
+async function archiveScopeKey(assetId, request) {
+  const { stdout } = await execFile(process.execPath, [
+    "--no-warnings",
+    "--experimental-strip-types",
+    "--input-type=module",
+    "--eval",
+    `const module = await import(${JSON.stringify(markersModule.href)}); console.log(JSON.stringify(module.chartArchiveScopeKey?.(${JSON.stringify(assetId)}, ${JSON.stringify(request)}) ?? null));`
+  ]);
+  return JSON.parse(stdout);
+}
+
+async function scopedArchiveUpdates(currentScopeKey, storedContext) {
+  const { stdout } = await execFile(process.execPath, [
+    "--no-warnings",
+    "--experimental-strip-types",
+    "--input-type=module",
+    "--eval",
+    `const module = await import(${JSON.stringify(markersModule.href)}); console.log(JSON.stringify(module.selectScopedChartArchiveUpdates?.(${JSON.stringify(currentScopeKey)}, ${JSON.stringify(storedContext)}) ?? []));`
+  ]);
+  return JSON.parse(stdout);
+}
+
 async function relevantUpdates(asset, stories) {
   const { stdout } = await execFile(process.execPath, [
     "--no-warnings",
@@ -133,6 +155,27 @@ test("live and archived marker inputs deduplicate stable public update IDs", asy
   assert.equal(merged[0].title, "Live");
 });
 
+test("archive marker cache is eligible only for its exact asset and rounded range scope", async () => {
+  const request = { fromMs: 0, toMs: 1_920_000 };
+  const [novaScope, lumaScope, shiftedNovaScope] = await Promise.all([
+    archiveScopeKey("nova", request),
+    archiveScopeKey("luma", request),
+    archiveScopeKey("nova", { fromMs: 60_000, toMs: 1_980_000 })
+  ]);
+  const stored = { scopeKey: novaScope, updates: [{ id: "nova-archive", title: "NOVA archive", summary: "", publishedAt: "1970-01-01T00:00:05.000Z" }] };
+  const [matching, wrongAsset, wrongRange, noRequest] = await Promise.all([
+    scopedArchiveUpdates(novaScope, stored),
+    scopedArchiveUpdates(lumaScope, stored),
+    scopedArchiveUpdates(shiftedNovaScope, stored),
+    scopedArchiveUpdates(null, stored)
+  ]);
+
+  assert.deepEqual(matching.map((update) => update.id), ["nova-archive"]);
+  assert.deepEqual(wrongAsset, []);
+  assert.deepEqual(wrongRange, []);
+  assert.deepEqual(noRequest, []);
+});
+
 test("related-company archived chart context keeps only updates that affected the selected asset", async () => {
   const updates = await relevantUpdates(
     { id: "nova", sector: "Mobility" },
@@ -161,6 +204,8 @@ test("the price chart renders neutral accessible public-information markers", as
   assert.match(chart, /selectChartStoryMarkers/);
   assert.match(chart, /selectChartSamplePositions/);
   assert.match(chart, /selectChartArchiveRequest/);
+  assert.match(chart, /chartArchiveScopeKey/);
+  assert.match(chart, /selectScopedChartArchiveUpdates/);
   assert.match(chart, /fetchStoryHistory/);
   assert.match(chart, /mergeChartStoryUpdates/);
   assert.match(chart, /chart-story-marker/);
