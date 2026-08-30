@@ -103,7 +103,7 @@ export function App() {
           {selectedTab === "overview" && <section id="asset-panel-overview" role="tabpanel" aria-labelledby="asset-tab-overview" className="overview-panel">
             <MarketRead marketRead={asset.marketRead} />
             <div className="timeframe-row" aria-label="Chart timeframe"><span className="timeframe-button is-active">LIVE</span><span>Session data only</span></div>
-            <PriceChart asset={asset} samples={session.selectedHistory} updates={relevantStoryUpdates} />
+            <PriceChart asset={asset} samples={session.selectedHistory} updates={relevantStoryUpdates} recentStoryWindowMs={session.market.storyRecentWindowMs} />
             <MovementStory asset={asset} />
             {selectedStory && <NewsStory story={selectedStory} generatedAt={session.market.generatedAt} />}
           </section>}

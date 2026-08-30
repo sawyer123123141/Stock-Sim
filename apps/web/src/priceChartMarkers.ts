@@ -1,4 +1,4 @@
-import type { MarketStoryUpdateSnapshot } from "../../../packages/shared/src/index";
+import type { MarketStoryHistoryQuery, MarketStoryUpdateSnapshot } from "../../../packages/shared/src/index";
 
 export interface ChartPriceSample {
   atMs: number;
@@ -14,6 +14,14 @@ interface ChartTimeRange {
   firstAtMs: number;
   lastAtMs: number;
 }
+
+export interface ChartArchiveUpdateContext {
+  scopeKey: string;
+  updates: MarketStoryUpdateSnapshot[];
+}
+
+/** Coarser than the five-second live cadence so chart context does not refetch per tick. */
+const CHART_ARCHIVE_REQUEST_GRANULARITY_MS = 60_000;
 
 export interface ChartSamplePosition {
   /** Normalized horizontal position on the chart's shared time axis. */
@@ -47,6 +55,52 @@ export function selectChartSamplePositions(samples: ChartPriceSample[]): ChartSa
       ? positionForTimestamp(sample.atMs, range) ?? index / Math.max(samples.length - 1, 1)
       : index / Math.max(samples.length - 1, 1)
   }));
+}
+
+/**
+ * Loads compact archive context only when the current session range reaches
+ * farther back than the live recent-story projection. Rounded bounds safely
+ * cover the visible chart while preventing a request on every live tick.
+ */
+export function selectChartArchiveRequest(
+  samples: ChartPriceSample[],
+  recentStoryWindowMs: number
+): MarketStoryHistoryQuery | null {
+  const range = chartTimeRange(samples);
+  if (!range || !Number.isFinite(recentStoryWindowMs) || recentStoryWindowMs <= 0 || range.firstAtMs >= range.lastAtMs - recentStoryWindowMs) return null;
+  return {
+    fromMs: Math.floor(range.firstAtMs / CHART_ARCHIVE_REQUEST_GRANULARITY_MS) * CHART_ARCHIVE_REQUEST_GRANULARITY_MS,
+    toMs: Math.ceil(range.lastAtMs / CHART_ARCHIVE_REQUEST_GRANULARITY_MS) * CHART_ARCHIVE_REQUEST_GRANULARITY_MS
+  };
+}
+
+/** A fetched archive page belongs only to the asset and rounded visible range that requested it. */
+export function chartArchiveScopeKey(assetId: string, request: MarketStoryHistoryQuery | null): string | null {
+  if (
+    !assetId
+    || !request
+    || !Number.isFinite(request.fromMs)
+    || !Number.isFinite(request.toMs)
+  ) return null;
+  return `${assetId}:${request.fromMs}:${request.toMs}`;
+}
+
+/** Ignores stale archive data during render before an effect can clear or replace it. */
+export function selectScopedChartArchiveUpdates(
+  currentScopeKey: string | null,
+  context: ChartArchiveUpdateContext | null
+): MarketStoryUpdateSnapshot[] {
+  return currentScopeKey && context?.scopeKey === currentScopeKey ? context.updates : [];
+}
+
+/** Preserves the live copy when the same public update crosses the lifecycle boundary. */
+export function mergeChartStoryUpdates(
+  liveUpdates: MarketStoryUpdateSnapshot[],
+  archivedUpdates: MarketStoryUpdateSnapshot[]
+): MarketStoryUpdateSnapshot[] {
+  const byId = new Map(liveUpdates.map((update) => [update.id, update]));
+  for (const update of archivedUpdates) if (!byId.has(update.id)) byId.set(update.id, update);
+  return [...byId.values()];
 }
 
 /**

@@ -176,6 +176,23 @@ export interface MarketStory {
   updates: MarketStoryUpdate[];
 }
 
+/** Persisted public-only history after a story no longer has private runtime work. */
+export interface MarketStoryHistoryUpdate {
+  id: string;
+  title: string;
+  summary: string;
+  publishedAt: number;
+  relatedAssetIds?: string[];
+}
+
+/** Compact public information retained after a resolved story leaves runtime state. */
+export interface MarketStoryHistory {
+  id: string;
+  title: string;
+  target: MarketEventTarget;
+  updates: MarketStoryHistoryUpdate[];
+}
+
 export interface MarketPressure {
   simulated: number;
   player: number;
@@ -186,6 +203,8 @@ export interface MarketState {
   assets: AssetState[];
   activeEvents: MarketEvent[];
   stories: MarketStory[];
+  /** Optional for legacy recovery states created before story lifecycle support. */
+  storyHistory?: MarketStoryHistory[];
 }
 
 export interface AssetSnapshot {
@@ -257,12 +276,33 @@ export interface MarketStorySnapshot {
   title: string;
   target: MarketEventTarget;
   status: MarketStoryStatus;
+  lifecycle: MarketStoryLifecycle;
   updates: MarketStoryUpdateSnapshot[];
+}
+
+export type MarketStoryLifecycle = "developing" | "recent" | "archive";
+
+/** Server-owned lifecycle window, shared with the browser only to avoid needless archive requests. */
+export const RECENT_STORY_WINDOW_MS = 30 * 60 * 1_000;
+
+/** Optional bounded public history selection for a Stories page or visible chart range. */
+export interface MarketStoryHistoryQuery {
+  cursor?: string;
+  fromMs?: number;
+  toMs?: number;
+}
+
+/** Bounded public archive response for one selected asset. */
+export interface MarketStoryHistoryPage {
+  stories: MarketStorySnapshot[];
+  nextCursor?: string;
 }
 
 export interface MarketSnapshot {
   sequence: number;
   generatedAt: string;
+  /** Server-owned time window used only to decide when visible charts need archive context. */
+  storyRecentWindowMs: number;
   assets: AssetSnapshot[];
   events: MarketEventSnapshot[];
   stories: MarketStorySnapshot[];

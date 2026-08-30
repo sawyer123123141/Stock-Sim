@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 
 const execFile = promisify(execFileCallback);
 const markersModule = new URL("../apps/web/src/priceChartMarkers.ts", import.meta.url);
+const selectionModule = new URL("../apps/web/src/marketEventSelection.ts", import.meta.url);
 
 async function markers(samples, updates) {
   const { stdout } = await execFile(process.execPath, [
@@ -25,6 +26,61 @@ async function timeline(samples) {
     "--input-type=module",
     "--eval",
     `import { selectChartSamplePositions } from ${JSON.stringify(markersModule.href)}; console.log(JSON.stringify(selectChartSamplePositions(${JSON.stringify(samples)})));`
+  ]);
+  return JSON.parse(stdout);
+}
+
+async function archiveRequest(samples, recentStoryWindowMs = 1_800_000) {
+  const { stdout } = await execFile(process.execPath, [
+    "--no-warnings",
+    "--experimental-strip-types",
+    "--input-type=module",
+    "--eval",
+    `const module = await import(${JSON.stringify(markersModule.href)}); console.log(JSON.stringify(module.selectChartArchiveRequest?.(${JSON.stringify(samples)}, ${JSON.stringify(recentStoryWindowMs)}) ?? null));`
+  ]);
+  return JSON.parse(stdout);
+}
+
+async function mergeUpdates(live, archived) {
+  const { stdout } = await execFile(process.execPath, [
+    "--no-warnings",
+    "--experimental-strip-types",
+    "--input-type=module",
+    "--eval",
+    `const module = await import(${JSON.stringify(markersModule.href)}); console.log(JSON.stringify(module.mergeChartStoryUpdates?.(${JSON.stringify(live)}, ${JSON.stringify(archived)}) ?? []));`
+  ]);
+  return JSON.parse(stdout);
+}
+
+async function archiveScopeKey(assetId, request) {
+  const { stdout } = await execFile(process.execPath, [
+    "--no-warnings",
+    "--experimental-strip-types",
+    "--input-type=module",
+    "--eval",
+    `const module = await import(${JSON.stringify(markersModule.href)}); console.log(JSON.stringify(module.chartArchiveScopeKey?.(${JSON.stringify(assetId)}, ${JSON.stringify(request)}) ?? null));`
+  ]);
+  return JSON.parse(stdout);
+}
+
+async function scopedArchiveUpdates(currentScopeKey, storedContext) {
+  const { stdout } = await execFile(process.execPath, [
+    "--no-warnings",
+    "--experimental-strip-types",
+    "--input-type=module",
+    "--eval",
+    `const module = await import(${JSON.stringify(markersModule.href)}); console.log(JSON.stringify(module.selectScopedChartArchiveUpdates?.(${JSON.stringify(currentScopeKey)}, ${JSON.stringify(storedContext)}) ?? []));`
+  ]);
+  return JSON.parse(stdout);
+}
+
+async function relevantUpdates(asset, stories) {
+  const { stdout } = await execFile(process.execPath, [
+    "--no-warnings",
+    "--experimental-strip-types",
+    "--input-type=module",
+    "--eval",
+    `import { selectRelevantMarketStoryUpdates } from ${JSON.stringify(selectionModule.href)}; console.log(JSON.stringify(selectRelevantMarketStoryUpdates(${JSON.stringify(asset)}, ${JSON.stringify(stories)})));`
   ]);
   return JSON.parse(stdout);
 }
@@ -77,6 +133,67 @@ test("chart markers include only public updates in the visible timestamp range",
   ]);
 });
 
+test("only a visible range extending beyond live story context requests bounded archive markers", async () => {
+  const [shortSession, longSession] = await Promise.all([
+    archiveRequest([{ atMs: 0 }, { atMs: 5_000 }]),
+    archiveRequest([{ atMs: 0 }, { atMs: 1_900_000 }])
+  ]);
+
+  assert.equal(shortSession, null);
+  assert.deepEqual(longSession, { fromMs: 0, toMs: 1_920_000 });
+});
+
+test("live and archived marker inputs deduplicate stable public update IDs", async () => {
+  const merged = await mergeUpdates(
+    [{ id: "shared", title: "Live", summary: "Live copy", publishedAt: "1970-01-01T00:00:05.000Z" }],
+    [{ id: "shared", title: "Archive", summary: "Archive copy", publishedAt: "1970-01-01T00:00:05.000Z" }, {
+      id: "archive-only", title: "Archive only", summary: "Historical context", publishedAt: "1970-01-01T00:00:06.000Z"
+    }]
+  );
+
+  assert.deepEqual(merged.map((update) => update.id), ["shared", "archive-only"]);
+  assert.equal(merged[0].title, "Live");
+});
+
+test("archive marker cache is eligible only for its exact asset and rounded range scope", async () => {
+  const request = { fromMs: 0, toMs: 1_920_000 };
+  const [novaScope, lumaScope, shiftedNovaScope] = await Promise.all([
+    archiveScopeKey("nova", request),
+    archiveScopeKey("luma", request),
+    archiveScopeKey("nova", { fromMs: 60_000, toMs: 1_980_000 })
+  ]);
+  const stored = { scopeKey: novaScope, updates: [{ id: "nova-archive", title: "NOVA archive", summary: "", publishedAt: "1970-01-01T00:00:05.000Z" }] };
+  const [matching, wrongAsset, wrongRange, noRequest] = await Promise.all([
+    scopedArchiveUpdates(novaScope, stored),
+    scopedArchiveUpdates(lumaScope, stored),
+    scopedArchiveUpdates(shiftedNovaScope, stored),
+    scopedArchiveUpdates(null, stored)
+  ]);
+
+  assert.deepEqual(matching.map((update) => update.id), ["nova-archive"]);
+  assert.deepEqual(wrongAsset, []);
+  assert.deepEqual(wrongRange, []);
+  assert.deepEqual(noRequest, []);
+});
+
+test("related-company archived chart context keeps only updates that affected the selected asset", async () => {
+  const updates = await relevantUpdates(
+    { id: "nova", sector: "Mobility" },
+    [{
+      id: "luma-archive",
+      title: "LUMA history",
+      target: { kind: "asset", value: "luma" },
+      status: "resolved",
+      lifecycle: "archive",
+      updates: [{ id: "affects-nova", title: "NOVA context", summary: "", publishedAt: "1970-01-01T00:00:05.000Z", relatedAssetIds: ["nova"] }, {
+        id: "does-not-affect-nova", title: "Other context", summary: "", publishedAt: "1970-01-01T00:00:06.000Z", relatedAssetIds: ["hgrid"]
+      }]
+    }]
+  );
+
+  assert.deepEqual(updates.map((update) => update.id), ["affects-nova"]);
+});
+
 test("the price chart renders neutral accessible public-information markers", async () => {
   const root = new URL("../", import.meta.url);
   const [chart, app] = await Promise.all([
@@ -86,6 +203,11 @@ test("the price chart renders neutral accessible public-information markers", as
 
   assert.match(chart, /selectChartStoryMarkers/);
   assert.match(chart, /selectChartSamplePositions/);
+  assert.match(chart, /selectChartArchiveRequest/);
+  assert.match(chart, /chartArchiveScopeKey/);
+  assert.match(chart, /selectScopedChartArchiveUpdates/);
+  assert.match(chart, /fetchStoryHistory/);
+  assert.match(chart, /mergeChartStoryUpdates/);
   assert.match(chart, /chart-story-marker/);
   assert.match(chart, /role="button"/);
   assert.match(chart, /aria-label/);

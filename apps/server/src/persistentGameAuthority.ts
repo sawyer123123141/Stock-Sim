@@ -1,4 +1,4 @@
-import type { MarketSnapshot, PortfolioSnapshot, TradeExecutionResponse, TradeIntent } from "../../../packages/shared/src/index.js";
+import type { MarketSnapshot, MarketStoryHistoryPage, MarketStoryHistoryQuery, PortfolioSnapshot, TradeExecutionResponse, TradeIntent } from "../../../packages/shared/src/index.js";
 import { createSeedMarket } from "../../../packages/sim/src/index.js";
 import { createMarketRuntime, type MarketRuntimeRecoveryState } from "./marketRuntime.js";
 import { InMemoryPortfolioStore, type PortfolioState } from "./portfolioStore.js";
@@ -27,6 +27,7 @@ export function createInitialGameState(startedAtMs: number): PersistedGameState 
 
 export interface PersistentGameAuthority {
   getMarket(): Promise<MarketSnapshot>;
+  getStoryHistory(assetId: string, query?: MarketStoryHistoryQuery | string): Promise<MarketStoryHistoryPage>;
   getPortfolio(): Promise<PortfolioSnapshot>;
   executeTrade(intent: TradeIntent): Promise<TradeExecutionResponse>;
 }
@@ -56,6 +57,7 @@ export function createPersistentGameAuthority(
 
   return {
     getMarket: () => withRuntime(async (runtime) => runtime.snapshot()),
+    getStoryHistory: (assetId, query) => withRuntime(async (runtime) => runtime.storyHistoryForAsset(assetId, query)),
     getPortfolio: () => withRuntime(async (runtime, state) => {
       const service = createTradingService({
         runtime,

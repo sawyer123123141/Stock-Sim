@@ -39,6 +39,17 @@ async function selectStoryHistory(asset, stories) {
   return JSON.parse(stdout);
 }
 
+async function selectStoryLifecycleGroups(asset, stories) {
+  const { stdout } = await execFile(process.execPath, [
+    "--no-warnings",
+    "--experimental-strip-types",
+    "--input-type=module",
+    "--eval",
+    `import { selectStoryLifecycleGroups } from ${JSON.stringify(selectorModule.href)}; console.log(JSON.stringify(selectStoryLifecycleGroups(${JSON.stringify(asset)}, ${JSON.stringify(stories)})));`
+  ]);
+  return JSON.parse(stdout);
+}
+
 test("a relevant developing sector story beats an older resolved asset story", async () => {
   const selected = await selectStory(
     { id: "nova", sector: "Mobility" },
@@ -112,4 +123,24 @@ test("Stories history keeps relevant public stories, with developing stories bef
 
   assert.deepEqual(selected.map((story) => story.id), ["developing-sector", "resolved-asset", "resolved-global"]);
   assert.ok(selected.every((story) => story.updates.every((update) => update.publishedAt)));
+});
+
+test("Overview ignores archive while Stories separates developing, recent, and archive without duplicates", async () => {
+  const asset = { id: "nova", sector: "Mobility" };
+  const stories = [
+    { id: "archived-direct", title: "Older NOVA story", target: { kind: "asset", value: "nova" }, status: "resolved", lifecycle: "archive", updates: [{ id: "old", title: "Old NOVA update", summary: "", publishedAt: "2026-01-01T00:01:00.000Z" }] },
+    { id: "recent-global", title: "Recent market context", target: { kind: "global" }, status: "resolved", lifecycle: "recent", updates: [{ id: "recent", title: "Recent update", summary: "", publishedAt: "2026-01-01T00:05:00.000Z" }] },
+    { id: "developing-sector", title: "Developing mobility story", target: { kind: "sector", value: "Mobility" }, status: "developing", lifecycle: "developing", updates: [{ id: "developing", title: "Current update", summary: "", publishedAt: "2026-01-01T00:04:00.000Z" }] },
+    { id: "related-archive", title: "Older LUMA story", target: { kind: "asset", value: "luma" }, status: "resolved", lifecycle: "archive", updates: [{ id: "related", title: "Battery update", summary: "", publishedAt: "2026-01-01T00:03:00.000Z", relatedAssetIds: ["nova"] }] }
+  ];
+
+  const overview = await selectStory(asset, stories);
+  const groups = await selectStoryLifecycleGroups(asset, stories);
+  const groupedIds = Object.values(groups).flat().map((story) => story.id);
+
+  assert.equal(overview.id, "developing-sector");
+  assert.deepEqual(groups.developing.map((story) => story.id), ["developing-sector"]);
+  assert.deepEqual(groups.recent.map((story) => story.id), ["recent-global"]);
+  assert.deepEqual(groups.archive.map((story) => story.id), ["archived-direct", "related-archive"]);
+  assert.equal(new Set(groupedIds).size, groupedIds.length);
 });
