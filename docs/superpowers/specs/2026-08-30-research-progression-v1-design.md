@@ -2,7 +2,7 @@
 
 ## Status and decision
 
-**Status:** Proposed design for review. No production implementation has begun.
+**Status:** Revised design for independent review. No production implementation has begun.
 
 **Goal:** turn Research from an automatic, global readout into a small, durable player capability. A player chooses which stock to understand more deeply; the game supplies broad, current qualitative interpretation for that one focus without answering the trade for them.
 
@@ -23,7 +23,7 @@ Today, a player receives the following without any progression state:
 * the compact Why the Move explanation;
 * public Developing Stories, recent public stories, and public archive history on demand;
 * stock Company profiles, including public business-connection names and broad role labels;
-* every stock's complete qualitative Company Outlook and Market Expectations in the normal shared `MarketSnapshot`;
+* every stock's complete qualitative Company Outlook and Market Expectations in the normal shared `MarketSnapshot` today;
 * no stock-company Research tab for crypto.
 
 The authoritative runtime already keeps the following private: raw fundamentals, raw expectations, priced expectations, expectation gaps, outcomes and expected outcomes before/after publication as appropriate, surprise/effect values, investor readings, relationship coefficients, active private story plans, applied markers, and RNG/recovery state. The current portfolio and market are persisted in the canonical locked game state, but the current objective is only browser-session memory.
@@ -60,7 +60,7 @@ An unfocused stock has no Company Outlook or Market Expectations rows in the pla
 
 V1 uses **coverage**, not money, an energy meter, timed jobs, or a generic experience bar.
 
-After the first onboarding milestone, the player may choose one stock as their **Research Focus**. Starting coverage is the core player action. The focused stock receives the current brief described above. Choosing another stock deliberately moves the single focus; it does not mutate the market, make a trade, or expose an unbounded data set.
+After the player's first successful **stock** purchase, they may choose one stock as their **Research Focus**. Starting coverage is the core player action. The focused stock receives the current brief described above. Choosing another stock deliberately moves the single focus; it does not mutate the market, make a trade, or expose an unbounded data set.
 
 Early capacity is exactly **one active stock coverage slot**. This is an attention limit: the player chooses the company whose deeper context they want available while they decide what to do next. It is not a charge, cooldown, or paid service.
 
@@ -75,17 +75,18 @@ The intentional trade-off is simultaneous attention, not the ability to inspect 
 
 ## 4. Early loop and onboarding
 
-The current first-session goal is `Own 2 assets`, held only in browser memory. Research needs durable player state, so V1 moves the minimal objective/progression needed for this sequence into the existing server-owned demo-player record. It does not build accounts, a broad achievement system, or a new currency.
+The current first-session goal is `Own 2 assets`, held only in browser memory. Research needs durable player state, so V1 moves only the minimal objective/progression needed for this sequence into the existing server-owned demo-player record. It does not build accounts, a broad achievement system, or a new currency.
 
 The first-session path is:
 
-1. **Own 2 assets** — preserve the current calm, direct first objective. Price, stories, Market Read, Why the Move, and normal trading are enough to make those first choices.
-2. **Choose a company to research** — on completion, the header's next compact objective invites the player to select a stock and start their one Research Focus. The action completes this introduction; it is not a recurring quest.
-3. **Use the brief in a later decision** — the UI may give one plain-language hint, such as “Compare what the company looks like with what investors already expect.” It does not award points for repeatedly opening rows or require a mandatory tutorial screen.
+1. **Explore the public market** — price, stories, Market Read, Why the Move, Company, and normal trading are enough to make a first imperfect decision.
+2. **Make the first successful stock purchase** — this unlocks the one personal Research Focus. A crypto purchase leaves the market fully playable but does not unlock invented company research.
+3. **Choose a company to research** — the header's next compact objective invites the player to select a stock and start coverage. The action completes this introduction; it is not a recurring quest.
+4. **Return to broader investing** — a later compact objective can ask the player to own or investigate multiple assets. That later objective is not a prerequisite for learning Research.
 
 There is no quota such as “read five stories,” no timer, and no reward loop for changing focus. The strategy is deciding where the player's limited live attention belongs.
 
-V1's progression is intentionally small: the first portfolio milestone leads to one personal coverage capability. Expanding capacity is a later progression decision, not an invisible level meter in this slice.
+V1's progression is intentionally small: the first stock purchase leads to one personal coverage capability. Expanding capacity is a later progression decision, not an invisible level meter in this slice.
 
 ## 5. Qualitative interpretation and limits
 
@@ -134,19 +135,25 @@ The future coverage model should use a generic subject identifier rather than a 
 
 ## 8. Server authority and persistence design
 
-Research state is per player, not global market state. It belongs beside the persisted portfolio in the existing locked `PersistedGameState`, conceptually:
+Research state is per player, not global market state. The architecture has two deliberate ownership layers:
+
+* **Shared market information:** prices, public stories/history, Market Read, public movement explanations, public company identity, and basic public business relationships. This remains the same for every client and stays in the normal `MarketSnapshot`/polling/WebSocket contract.
+* **Player research information:** unlock state, active focus asset ID, focused qualitative Company Outlook, focused qualitative Market Expectations, and deeper interpretation of public relationships. This is returned only through a player-owned projection.
+
+Player research belongs beside the persisted portfolio in the existing locked `PersistedGameState`, conceptually:
 
 ```ts
 interface PlayerResearchState {
+  firstStockPurchaseComplete: boolean;
   unlocked: boolean;
   activeStockAssetId?: string;
   coverageCapacity: 1;
 }
 ```
 
-This is intentionally a conceptual V1 shape, not a finalized production type. It must hydrate legacy states safely as locked/unfocused, and it must be updated under the existing Postgres row-lock transaction architecture. Selecting coverage has no effect on canonical market simulation, market timing, stories, prices, trades, or another player's projection.
+This is intentionally a conceptual V1 shape, not a finalized production type. It must hydrate legacy states safely as locked/unfocused, and it must be updated under the existing Postgres row-lock transaction architecture. The successful purchase that first establishes a positive **stock** position records `firstStockPurchaseComplete` atomically with the portfolio mutation; a crypto-only purchase does not. Selecting coverage has no effect on canonical market simulation, market timing, stories, prices, trades, or another player's projection.
 
-The normal shared `MarketSnapshot` and polling/WebSocket contract must stop carrying `AssetSnapshot.research` for every stock. A player-specific server path instead returns a safe `ResearchProgressionSnapshot`: the player's capacity/focus status plus a brief only for the valid focused stock. The authority computes the qualitative brief at the current canonical market state during the locked request; the browser renders it and cannot manufacture access for another asset.
+The normal shared `MarketSnapshot` and polling/WebSocket contract must stop carrying `AssetSnapshot.research` for every stock. A player-specific server path instead returns a safe `ResearchProgressionSnapshot`: the player's unlock/capacity/focus status plus a brief only for the valid focused stock. The authority computes the qualitative brief at the current canonical market state during the locked request; the browser renders it and cannot manufacture access for another asset. Selecting a Research Focus changes only this player-owned state; it never changes global prices, stories, relationships, trade outcomes, canonical time, or any other player's market snapshot.
 
 This keeps shared traffic bounded, avoids leaking a player's progression into public market updates, and preserves the current public/private boundary. No new database table is required: the small player state lives in the existing persisted state for V1. No full account/auth system is introduced.
 
@@ -156,7 +163,7 @@ The existing selected-asset tabs remain the only local navigation. There is no t
 
 For a stock:
 
-* **Before Research unlock:** the Research tab explains in one compact empty state that company research unlocks after the first learning milestone. It does not show a giant locked panel.
+* **Before Research unlock:** the Research tab explains in one compact empty state that company research becomes available after the first stock purchase. It does not show a giant locked panel.
 * **Unlocked but not focused:** the tab explains the one-company focus, names the choice, and offers one labelled action: “Research this company.” It also clearly identifies which stock is currently focused before a deliberate move.
 * **Focused:** the current brief replaces the old always-free panel. It uses the existing compact research-row visual vocabulary, then a small “Move research focus” action.
 
@@ -220,11 +227,12 @@ A subsequent implementation plan must prove all of the following:
 3. a focused stock receives only the named broad labels and public-context prose;
 4. raw/private state and all future information remain absent from serialized responses;
 5. focus updates and objective/progression state persist across refresh/server restart and are isolated from the shared market;
-6. focus selection is server-authoritative, valid only for a current stock, and does not change simulation or trade state;
-7. one active capacity is enforced deterministically without timers, money, or a new currency;
-8. Stories/related-company relevance remain public, bounded, and unchanged for unfocused and focused stocks alike;
-9. crypto remains compatible without fake company research;
-10. keyboard, desktop, and approximately 390px mobile layouts preserve the existing calm hierarchy.
+6. the first successful stock purchase, but not a crypto purchase, unlocks Research Focus atomically with its portfolio mutation;
+7. focus selection is server-authoritative, valid only for a current stock, and does not change simulation or trade state;
+8. one active capacity is enforced deterministically without timers, money, or a new currency;
+9. Stories/related-company relevance remain public, bounded, and unchanged for unfocused and focused stocks alike;
+10. crypto remains compatible without fake company research;
+11. keyboard, desktop, and approximately 390px mobile layouts preserve the existing calm hierarchy.
 
 ## 14. Self-review
 
@@ -232,9 +240,15 @@ A subsequent implementation plan must prove all of the following:
 
 **Pay-to-win risk:** no payment, premium data, or purchasable capacity. Future departments can reduce attention cost but must still analyze legitimate public information and remain non-predictive.
 
-**Over-restriction risk:** first-session public information and full public history remain visible. The gate applies only to deep interpretation, after the first beginner objective; the player can still make a meaningful initial trade.
+**Over-restriction risk:** first-session public information and full public history remain visible. The gate applies only to deep interpretation after the player's first stock purchase; the player can still make a meaningful initial trade.
 
 **Information-leak risk:** the player-specific projection is server-owned and broad. It excludes raw state, future plans, outcomes, gaps, formulas, and recommendations. It does not move simulation authority or use browser classification.
+
+**Ownership and account compatibility:** the market projection remains shared, while the small coverage record is keyed to the player alongside their portfolio. The current demo player therefore works now without making focus shared state; a future account key can replace the demo ID without changing the ownership boundary.
+
+**Onboarding check:** the unlock follows the first successful stock purchase, so it can inform the second investment decision. It does not treat a crypto purchase as a reason to fabricate company research, and broader multi-asset guidance comes later.
+
+**Specialist compatibility:** a later specialist or department can add/maintain coverage using the same player-owned records. It cannot alter the public market state or turn the research brief into a trading recommendation.
 
 **Scope check:** this is one vertical foundation: persistent player focus, a safe focused brief, and a compact onboarding transition. Capacity expansion, topic jobs, specialists, ownership, and crypto analysis remain separate future slices.
 
