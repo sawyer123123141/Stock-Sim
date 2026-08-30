@@ -91,5 +91,7 @@ test("the price chart renders neutral accessible public-information markers", as
   assert.match(chart, /aria-label/);
   assert.match(chart, /onMouseEnter/);
   assert.match(chart, /onFocus/);
+  assert.match(chart, /activeMarker\.update\.summary/);
+  assert.match(chart, /relatedAssetIds\?\.includes\(asset\.id\)/);
   assert.match(app, /selectRelevantMarketStoryUpdates/);
 });

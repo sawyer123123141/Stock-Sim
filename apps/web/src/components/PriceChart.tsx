@@ -31,6 +31,7 @@ export function PriceChart({ asset, samples, updates }: PriceChartProps) {
   const samplePositions = selectChartSamplePositions(samples);
   const markers = selectChartStoryMarkers(samples, updates);
   const activeMarker = markers.find((marker) => marker.update.id === activeMarkerId) ?? null;
+  const activeMarkerIsRelatedCompany = activeMarker?.update.relatedAssetIds?.includes(asset.id) ?? false;
 
   const path = hasLine
     ? samples.map((point, index) => {
@@ -118,8 +119,10 @@ export function PriceChart({ asset, samples, updates }: PriceChartProps) {
       </svg>
       {activeMarker && (
         <figcaption className="chart-marker-detail" role="status">
+          <span className="chart-marker-kind">{activeMarkerIsRelatedCompany ? "RELATED COMPANY" : "PUBLIC INFORMATION"}</span>
           <strong>{activeMarker.update.title}</strong>
           <span>{activeMarker.update.publishedAt}</span>
+          <p>{activeMarker.update.summary}</p>
         </figcaption>
       )}
       <div className="chart-range" aria-hidden="true">
