@@ -17,6 +17,7 @@ import {
   hydrateMarketCompanyReality,
   publishMarketStoryUpdate,
   tickMarket,
+  toMarketStoryHistory,
   toMarketSnapshot,
   type MarketReadByAsset,
   type PressureByAsset
@@ -84,7 +85,11 @@ const SYSTEM_SCHEDULER: MarketScheduler = {
 export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketRuntime {
   const recovery = options.recoveryState;
   const initialState = recovery?.marketState ?? options.initialState ?? createSeedMarket();
-  let state = hydrateMarketCompanyReality({ ...initialState, stories: initialState.stories ?? [] });
+  let state = hydrateMarketCompanyReality({
+    ...initialState,
+    stories: initialState.stories ?? [],
+    storyHistory: initialState.storyHistory ?? []
+  });
   const rng = createStatefulSeededRng(recovery?.rngState ?? options.seed ?? DEFAULT_SEED);
   const clock = options.clock ?? SYSTEM_CLOCK;
   const scheduler = options.scheduler ?? SYSTEM_SCHEDULER;
@@ -239,6 +244,21 @@ export function createMarketRuntime(options: MarketRuntimeOptions = {}): MarketR
       };
     }
     state = tickMarket(state, nowMs, deltaMs, combinedPressureByAsset, rng);
+    const settled = state.stories.filter((story) => (
+      story.status === "resolved"
+      && story.updates.every((update) => update.state === "published")
+      && !state.activeEvents.some((event) => story.updates.some((update) => (
+        event.id === update.id || event.relationship?.sourceEventId === update.id
+      )))
+    ));
+    if (settled.length > 0) {
+      const settledIds = new Set(settled.map((story) => story.id));
+      state = {
+        ...state,
+        stories: state.stories.filter((story) => !settledIds.has(story.id)),
+        storyHistory: [...(state.storyHistory ?? []), ...settled.map(toMarketStoryHistory)]
+      };
+    }
     lastAdvancedAtMs = nowMs;
 
     const nextSnapshot = snapshot();

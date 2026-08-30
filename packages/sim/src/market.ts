@@ -2,7 +2,12 @@ import type {
   MarketEvent,
   MarketEventSnapshot,
   MarketStory,
+  MarketStoryHistory,
+  MarketStoryHistoryUpdate,
+  MarketStoryLifecycle,
   MarketStorySnapshot,
+  MarketStoryStatus,
+  MarketStoryUpdate,
   MarketPressure,
   MarketReadSnapshot,
   MarketSnapshot,
@@ -20,6 +25,9 @@ export type MarketReadByAsset = Readonly<Record<string, MarketReadSnapshot | und
 
 const ZERO_PRESSURE: MarketPressure = { simulated: 0, player: 0 };
 
+/** Current context stays useful for several market developments without becoming a feed. */
+export const RECENT_STORY_WINDOW_MS = 30 * 60 * 1_000;
+
 export function tickMarket(
   state: MarketState,
   nowMs: number,
@@ -31,6 +39,7 @@ export function tickMarket(
     sequence: state.sequence + 1,
     activeEvents: state.activeEvents.filter((event) => event.expiresAt > nowMs),
     stories: state.stories ?? [],
+    storyHistory: state.storyHistory ?? [],
     assets: state.assets.map((asset) => {
       const relationshipSourceName = relatedCompanyName(state, asset, nowMs);
       return tickAsset(asset, {
@@ -77,7 +86,7 @@ export function toMarketSnapshot(
     events: state.activeEvents
       .filter((event) => !event.relationship && event.publishedAt <= generatedAtMs && event.expiresAt > generatedAtMs)
       .map(toMarketEventSnapshot),
-    stories: toMarketStorySnapshots(state.stories ?? [], generatedAtMs)
+    stories: toMarketStorySnapshots(state.stories ?? [], generatedAtMs, state.storyHistory ?? [])
   };
 }
 
@@ -87,28 +96,93 @@ export function toMarketSnapshot(
  */
 export function toMarketStorySnapshots(
   stories: MarketStory[],
+  generatedAtMs: number,
+  history: MarketStoryHistory[] = []
+): MarketStorySnapshot[] {
+  const runtime = stories.flatMap((story) => toRuntimeStorySnapshot(story, generatedAtMs));
+  const compact = toMarketStoryHistorySnapshots(history, generatedAtMs);
+  const runtimeIds = new Set(runtime.map((story) => story.id));
+  return [...runtime, ...compact.filter((story) => !runtimeIds.has(story.id))]
+    .filter((story) => story.lifecycle !== "archive");
+}
+
+/** Projects compact persisted history without loading it into normal live snapshots. */
+export function toMarketStoryHistorySnapshots(
+  history: MarketStoryHistory[],
   generatedAtMs: number
 ): MarketStorySnapshot[] {
-  return stories.flatMap((story) => {
-    const updates = story.updates
-      .filter((update) => update.state === "published" && update.publishedAt <= generatedAtMs)
+  return history.map((story) => toPublicStorySnapshot(story, "resolved", generatedAtMs));
+}
+
+/** Strips a settled runtime story to the exact public record needed for later history. */
+export function toMarketStoryHistory(story: MarketStory): MarketStoryHistory {
+  return {
+    id: story.id,
+    title: story.title,
+    target: { ...story.target },
+    updates: story.updates
+      .filter((update) => update.state === "published")
       .sort((left, right) => left.publishedAt - right.publishedAt || left.id.localeCompare(right.id))
-      .map((update) => ({
-        id: update.id,
-        title: update.title,
-        summary: update.summary,
-        publishedAt: new Date(update.publishedAt).toISOString(),
-        ...(update.relatedAssetIds?.length ? { relatedAssetIds: [...update.relatedAssetIds].sort() } : {})
-      }));
-    if (updates.length === 0) return [];
-    return [{
-      id: story.id,
-      title: story.title,
-      target: { ...story.target },
-      status: story.status,
-      updates
-    }];
-  });
+      .map((update) => toHistoryUpdate(update))
+  };
+}
+
+function toRuntimeStorySnapshot(story: MarketStory, generatedAtMs: number): MarketStorySnapshot[] {
+  const publicUpdates = story.updates
+    .filter((update) => update.state === "published" && update.publishedAt <= generatedAtMs)
+    .map((update) => toHistoryUpdate(update));
+  if (publicUpdates.length === 0) return [];
+  return [toPublicStorySnapshot({ ...story, updates: publicUpdates }, story.status, generatedAtMs)];
+}
+
+function toPublicStorySnapshot(
+  story: Pick<MarketStoryHistory, "id" | "title" | "target" | "updates">,
+  status: MarketStoryStatus,
+  generatedAtMs: number
+): MarketStorySnapshot {
+  const updates = story.updates
+    .sort((left, right) => left.publishedAt - right.publishedAt || left.id.localeCompare(right.id))
+    .map((update) => ({
+      id: update.id,
+      title: update.title,
+      summary: update.summary,
+      publishedAt: new Date(update.publishedAt).toISOString(),
+      ...(update.relatedAssetIds?.length ? { relatedAssetIds: [...update.relatedAssetIds].sort() } : {})
+    }));
+  return {
+    id: story.id,
+    title: story.title,
+    target: { ...story.target },
+    status,
+    lifecycle: lifecycleFor(status, story.updates, generatedAtMs),
+    updates
+  };
+}
+
+function toHistoryUpdate(update: {
+  id: string;
+  title: string;
+  summary: string;
+  publishedAt: number;
+  relatedAssetIds?: string[];
+}): MarketStoryHistoryUpdate {
+  return {
+    id: update.id,
+    title: update.title,
+    summary: update.summary,
+    publishedAt: update.publishedAt,
+    ...(update.relatedAssetIds?.length ? { relatedAssetIds: [...update.relatedAssetIds].sort() } : {})
+  };
+}
+
+function lifecycleFor(
+  status: MarketStoryStatus,
+  updates: Pick<MarketStoryHistoryUpdate, "publishedAt">[],
+  generatedAtMs: number
+): MarketStoryLifecycle {
+  if (status === "developing") return "developing";
+  const latestPublishedAt = Math.max(...updates.map((update) => update.publishedAt));
+  return generatedAtMs - latestPublishedAt <= RECENT_STORY_WINDOW_MS ? "recent" : "archive";
 }
 
 function relatedCompanyName(state: MarketState, asset: MarketState["assets"][number], nowMs: number): string | undefined {

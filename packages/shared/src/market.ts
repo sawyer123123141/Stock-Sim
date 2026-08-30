@@ -176,6 +176,23 @@ export interface MarketStory {
   updates: MarketStoryUpdate[];
 }
 
+/** Persisted public-only history after a story no longer has private runtime work. */
+export interface MarketStoryHistoryUpdate {
+  id: string;
+  title: string;
+  summary: string;
+  publishedAt: number;
+  relatedAssetIds?: string[];
+}
+
+/** Compact public information retained after a resolved story leaves runtime state. */
+export interface MarketStoryHistory {
+  id: string;
+  title: string;
+  target: MarketEventTarget;
+  updates: MarketStoryHistoryUpdate[];
+}
+
 export interface MarketPressure {
   simulated: number;
   player: number;
@@ -186,6 +203,8 @@ export interface MarketState {
   assets: AssetState[];
   activeEvents: MarketEvent[];
   stories: MarketStory[];
+  /** Optional for legacy recovery states created before story lifecycle support. */
+  storyHistory?: MarketStoryHistory[];
 }
 
 export interface AssetSnapshot {
@@ -257,8 +276,11 @@ export interface MarketStorySnapshot {
   title: string;
   target: MarketEventTarget;
   status: MarketStoryStatus;
+  lifecycle: MarketStoryLifecycle;
   updates: MarketStoryUpdateSnapshot[];
 }
+
+export type MarketStoryLifecycle = "developing" | "recent" | "archive";
 
 export interface MarketSnapshot {
   sequence: number;

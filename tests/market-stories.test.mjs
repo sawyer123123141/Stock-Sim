@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { toMarketStorySnapshots } from "../dist/packages/sim/src/market.js";
+import { toMarketStoryHistorySnapshots, toMarketStorySnapshots } from "../dist/packages/sim/src/market.js";
 import { createMarketStory } from "../dist/packages/sim/src/eventGenerator.js";
 import { createSeedMarket } from "../dist/packages/sim/src/fixtures.js";
 import { createMarketRuntime } from "../dist/apps/server/src/marketRuntime.js";
@@ -43,6 +43,7 @@ test("public story snapshots include only information that has been published", 
     title: "NOVA's commuter launch",
     target: { kind: "asset", value: "nova" },
     status: "developing",
+    lifecycle: "developing",
     updates: [{
       id: "story-nova-launch:demand",
       title: "Strong showroom demand reported",
@@ -226,4 +227,84 @@ test("legacy recovery preserves old information markers without creating follow-
   assert.equal(state.rngState, legacy.rngState);
   assert.equal(state.lastAdvancedAtMs, legacy.lastAdvancedAtMs);
   assert.deepEqual(state.appliedInformationIds, ["legacy-event"]);
+});
+
+test("a fully settled resolved story compacts once into public-only persisted history", () => {
+  const runtime = createMarketRuntime({
+    initialState: {
+      ...createSeedMarket(),
+      stories: [{
+        id: "story-archive",
+        title: "LUMA supplier update",
+        target: { kind: "asset", value: "luma" },
+        status: "developing",
+        updates: [{
+          id: "story-archive:public",
+          title: "Supply information becomes public",
+          summary: "Production details are now public.",
+          publishedAt: 5_000,
+          state: "pending",
+          outcome: { execution: 0.8 },
+          significance: "major"
+        }]
+      }]
+    },
+    startedAtMs: 0,
+    firstEventDelayMs: 1_000_000
+  });
+
+  runtime.advanceTo(5_000);
+  runtime.advanceTo(200_000);
+  const recovered = runtime.recoveryState();
+
+  assert.deepEqual(recovered.marketState.stories, []);
+  assert.equal(recovered.marketState.storyHistory.length, 1);
+  assert.deepEqual(recovered.marketState.storyHistory[0], {
+    id: "story-archive",
+    title: "LUMA supplier update",
+    target: { kind: "asset", value: "luma" },
+    updates: [{
+      id: "story-archive:public",
+      title: "Supply information becomes public",
+      summary: "Production details are now public.",
+      publishedAt: 5_000,
+      relatedAssetIds: ["nova"]
+    }]
+  });
+  assert.doesNotMatch(JSON.stringify(recovered.marketState.storyHistory), /outcome|expectedOutcome|surprise|effect|significance|fundamentalImpact|pending/i);
+  assert.deepEqual(recovered.appliedInformationIds, [
+    "story-archive:public",
+    "relationship:story-archive:public:luma-nova-supplier:nova"
+  ]);
+});
+
+test("compact history projects archived public timestamps and related metadata without private fields", () => {
+  const snapshots = toMarketStoryHistorySnapshots([{
+    id: "story-luma",
+    title: "LUMA battery update",
+    target: { kind: "asset", value: "luma" },
+    updates: [{
+      id: "story-luma:scaling",
+      title: "Scaling information arrives",
+      summary: "The public update changes the outlook.",
+      publishedAt: 5_000,
+      relatedAssetIds: ["nova"]
+    }]
+  }], 3_600_000);
+
+  assert.deepEqual(snapshots, [{
+    id: "story-luma",
+    title: "LUMA battery update",
+    target: { kind: "asset", value: "luma" },
+    status: "resolved",
+    lifecycle: "archive",
+    updates: [{
+      id: "story-luma:scaling",
+      title: "Scaling information arrives",
+      summary: "The public update changes the outlook.",
+      publishedAt: "1970-01-01T00:00:05.000Z",
+      relatedAssetIds: ["nova"]
+    }]
+  }]);
+  assert.doesNotMatch(JSON.stringify(snapshots), /outcome|expectation|effect|reaction|RNG/i);
 });
