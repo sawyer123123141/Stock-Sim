@@ -43,16 +43,6 @@ function normalized(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? clamp(value, -1, 1) : undefined;
 }
 
-function dimensionSurprise(
-  event: MarketEvent,
-  dimension: keyof MarketExpectations
-): number | undefined {
-  const actual = normalized(event.outcome?.[dimension]);
-  const expected = normalized(event.expectedOutcome?.[dimension]);
-  if (actual === undefined || expected === undefined) return undefined;
-  return clamp((actual - expected) / 2, -1, 1);
-}
-
 function addDelta(
   deltas: Partial<MarketExpectations>,
   dimension: keyof MarketExpectations,
@@ -64,44 +54,40 @@ function addDelta(
 
 /**
  * Converts one already-public primary event into conservative, sparse target
- * expectations. It interprets only published expectation surprises, never an
- * absolute outcome value or pending story information, and cannot mutate state.
+ * expectations. It cannot inspect pending story information or mutate state.
  */
 export function deriveRelationshipImpact(
   event: MarketEvent,
   relationship: CompanyRelationship
 ): RelationshipImpact | null {
-  if (
-    event.target.kind !== "asset"
-    || event.target.value !== relationship.fromAssetId
-    || !event.outcome
-    || !event.expectedOutcome
-  ) return null;
+  if (event.target.kind !== "asset" || event.target.value !== relationship.fromAssetId || !event.outcome) return null;
   const scale = INFLUENCE_SCALE[relationship.influence];
   const deltas: Partial<MarketExpectations> = {};
 
   switch (relationship.kind) {
     case "supplier":
-      addDelta(deltas, "execution", mapped(dimensionSurprise(event, "execution"), scale));
-      addDelta(deltas, "growth", mapped(dimensionSurprise(event, "growth"), scale * 0.56));
+      addDelta(deltas, "execution", expectationInformation(event, "execution", scale));
+      addDelta(deltas, "growth", absoluteInformation(event.outcome.competitivePosition, scale * 0.56));
       break;
     case "customer":
-      addDelta(deltas, "demand", mapped(dimensionSurprise(event, "demand"), scale));
-      addDelta(deltas, "growth", mapped(dimensionSurprise(event, "growth"), scale * 0.56));
+      addDelta(deltas, "demand", expectationInformation(event, "demand", scale));
+      addDelta(deltas, "growth", expectationInformation(event, "growth", scale * 0.56));
       break;
     case "competitor":
-      addDelta(deltas, "demand", mapped(dimensionSurprise(event, "demand"), -scale * 0.7));
-      addDelta(deltas, "demand", mapped(dimensionSurprise(event, "growth"), -scale * 0.45));
+      addDelta(deltas, "demand", absoluteInformation(event.outcome.competitivePosition, -scale * 0.75));
+      addDelta(deltas, "demand", expectationInformation(event, "demand", -scale * 0.7));
+      addDelta(deltas, "demand", expectationInformation(event, "growth", -scale * 0.45));
       break;
     case "partner":
-      addDelta(deltas, "execution", mapped(dimensionSurprise(event, "execution"), scale * 0.8));
-      addDelta(deltas, "growth", mapped(dimensionSurprise(event, "growth"), scale * 0.56));
+      addDelta(deltas, "execution", expectationInformation(event, "execution", scale * 0.8));
+      addDelta(deltas, "growth", expectationInformation(event, "growth", scale * 0.56));
       break;
   }
 
   const total = Object.values(deltas).reduce((sum, value) => sum + (value ?? 0), 0);
   if (total === 0) return null;
-  const reactionMagnitude = Math.abs(clamp(event.effect, -1, 1)) * scale * 0.8;
+  const informationStrength = clamp(Math.abs(total) / scale, 0, 1);
+  const reactionMagnitude = Math.abs(clamp(event.effect, -1, 1)) * scale * 0.8 * informationStrength;
   return {
     relationship,
     targetAssetId: relationship.toAssetId,
@@ -110,8 +96,22 @@ export function deriveRelationshipImpact(
   };
 }
 
-function mapped(value: number | undefined, scale: number): number | undefined {
-  return value === undefined ? undefined : value * scale;
+/** Direct expectation dimensions are interpreted only as public actual-minus-expected information. */
+function expectationInformation(
+  event: MarketEvent,
+  dimension: keyof MarketExpectations,
+  scale: number
+): number | undefined {
+  const actual = normalized(event.outcome?.[dimension]);
+  const expected = normalized(event.expectedOutcome?.[dimension]);
+  if (actual === undefined || expected === undefined) return undefined;
+  return clamp(actual - expected, -1, 1) * scale;
+}
+
+/** Dimensions without a market-expectation analogue remain explicit public information. */
+function absoluteInformation(value: unknown, scale: number): number | undefined {
+  const outcome = normalized(value);
+  return outcome === undefined ? undefined : outcome * scale;
 }
 
 /** Applies only public-belief changes; relationship spillovers never alter company reality. */

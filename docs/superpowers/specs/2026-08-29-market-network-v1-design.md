@@ -41,7 +41,7 @@ Only a story update that has reached its canonical `publishedAt` can enter the r
 1. materialize the primary public update and its ordinary primary event, including the dimension-level comparison with then-current market expectations;
 2. apply primary consequences exactly once;
 3. find relationships sourced by the primary target asset, ordered by target asset ID, kind, then relationship ID;
-4. calculate each direct target spillover from the published dimension-level surprise, not the absolute outcome value;
+4. calculate each direct target spillover from the published sparse information signal;
 5. apply only target market-expectation deltas and, when nonzero, append a bounded relationship reaction event;
 6. record the resulting public target marker on the published update;
 7. proceed with subsequent scheduled publication and the ordinary market tick.
@@ -50,19 +50,19 @@ Relationship reaction events are never fed back into this publication handler. A
 
 ## Sparse mappings and conservative scale
 
-The relationship interpreter maps only published dimensions with both an actual result and a directly comparable market expectation. A dimension contributes according to `(actual - expected) / 2`, matching the existing stock-event surprise semantics. This matters because a positive absolute result can still be disappointing when the market expected more. Dimensions without a direct expectation analogue are ignored by V1 relationship spillovers rather than being treated as inherently positive or negative.
+The relationship interpreter maps only dimensions with an intelligible economic connection. For growth, profitability, demand, and execution, published information means the actual outcome minus the `expectedOutcome` captured at publication; a positive-looking result can therefore still be disappointing when the market expected more. Dimensions without a market-expectation analogue, such as competitive position, remain explicit absolute public information where a sparse mapping calls for them. Unmapped outcomes are ignored.
 
-| Source relationship | Published surprise | Target expectation | Direction |
+| Source relationship | Published information | Target expectation | Direction |
 | --- | --- | --- | --- |
 | supplier | execution | execution | same |
-| supplier | growth | growth | same, reduced |
+| supplier | competitive position | growth | same, reduced |
 | customer | demand | demand | same |
 | customer | growth | growth | same, reduced |
-| competitor | demand, growth | demand | opposite, reduced |
+| competitor | competitive position, demand, growth | demand | opposite, reduced |
 | partner | execution | execution | same, reduced |
 | partner | growth | growth | same, reduced |
 
-The internal influence classes translate to conservative bounded coefficients: limited `0.08`, meaningful `0.14`, important `0.20`. A spillover combines only applicable mapped surprises, clamps its expectation deltas to the existing normalized range, and caps its temporary reaction below a direct event's normal compatibility reaction. The temporary reaction uses the existing event timing and decays through the existing event helpers; it is an influence signal, not a target price or a percentage-return tier.
+The internal influence classes translate to conservative bounded coefficients: limited `0.08`, meaningful `0.14`, important `0.20`. A spillover combines only applicable mapped dimensions, clamps its expectation deltas to the existing normalized range, and caps its temporary reaction below a direct event's normal compatibility reaction. That reaction is scaled by both the primary event magnitude and the mapped information strength, so a near-expectation result cannot produce a large secondary response. The temporary reaction uses the existing event timing and decays through the existing event helpers; it is an influence signal, not a target price or a percentage-return tier.
 
 For example, a LUMA scaling update can report positive absolute growth or execution values yet still weaken NOVA expectations if those results miss LUMA's then-current market expectations. Conversely, a public NOVA demand beat may improve LUMA demand expectations. NOVA or LUMA fundamentals never change because of the connected-company spillover itself.
 
