@@ -15,6 +15,11 @@ export default async function handler(request: IncomingMessage, response: Server
   try {
     response.end(JSON.stringify(await hostedAuthority().setResearchFocus(await readBody(request) as ResearchFocusIntent)));
   } catch (error) {
+    if (error instanceof SyntaxError) {
+      response.statusCode = 400;
+      response.end(JSON.stringify({ error: "INVALID_RESEARCH_FOCUS", message: "A stock asset ID is required." }));
+      return;
+    }
     if (!(error instanceof ResearchError)) throw error;
     response.statusCode = error.code === "RESEARCH_ASSET_NOT_FOUND"
       ? 404

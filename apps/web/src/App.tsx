@@ -59,7 +59,11 @@ export function App() {
 
   return (
     <main className="app-shell">
-      <MarketHeader totalValue={session.portfolio.totalValue} cash={session.portfolio.cash} ownedAssetCount={session.firstSessionOwnedAssetCount} />
+      <MarketHeader
+        totalValue={session.portfolio.totalValue}
+        cash={session.portfolio.cash}
+        objective={session.research?.objective ?? "make-first-stock-investment"}
+      />
 
       {session.connectionNotice && (
         <div className="connection-notice" role="status">{session.connectionNotice}</div>
@@ -108,7 +112,14 @@ export function App() {
             {selectedStory && <NewsStory story={selectedStory} generatedAt={session.market.generatedAt} />}
           </section>}
           {selectedTab === "company" && <CompanyProfile asset={asset} />}
-          {selectedTab === "research" && <ResearchPanel asset={asset} />}
+          {selectedTab === "research" && <ResearchPanel
+            asset={asset}
+            research={session.research}
+            pending={session.researchPending}
+            error={session.researchError}
+            focusableAssets={session.market.assets.filter((candidate) => candidate.kind === "stock")}
+            onFocus={session.focusResearch}
+          />}
           {selectedTab === "stories" && <StoryHistory asset={asset} stories={session.market.stories} />}
         </section>
 

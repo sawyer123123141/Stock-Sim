@@ -34,6 +34,7 @@ function createClockedAuthority(startedAtMs = 0) {
 test("legacy player starts locked and only a successful stock buy unlocks persisted Research", async () => {
   const session = createClockedAuthority();
   const authority = session.authority();
+  delete session.store.state.portfolio.research;
 
   assert.deepEqual(await authority.getResearch(), {
     unlocked: false,
@@ -73,6 +74,12 @@ test("Research Focus accepts any stock, rejects crypto or unknown assets, and pe
   const hgrid = await authority.setResearchFocus({ assetId: "hgrid" });
   assert.equal(hgrid.activeStockAssetId, "hgrid");
   assert.equal(hgrid.brief?.assetId, "hgrid");
+
+  const luma = await authority.setResearchFocus({ assetId: "luma" });
+  assert.equal(luma.activeStockAssetId, "luma");
+  assert.equal(luma.brief?.assetId, "luma");
+
+  await authority.setResearchFocus({ assetId: "hgrid" });
 
   await assert.rejects(
     () => authority.setResearchFocus({ assetId: "pulse" }),

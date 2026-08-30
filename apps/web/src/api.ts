@@ -4,6 +4,8 @@ import type {
   MarketStoryHistoryPage,
   MarketStorySnapshot,
   PortfolioSnapshot,
+  ResearchFocusIntent,
+  ResearchProgressionSnapshot,
   TradeExecutionResponse,
   TradeIntent,
   TradingErrorResponse
@@ -45,6 +47,18 @@ export function fetchMarket(): Promise<MarketSnapshot> {
 
 export function fetchPortfolio(): Promise<PortfolioSnapshot> {
   return requestJson<PortfolioSnapshot>("/api/portfolio");
+}
+
+export function fetchResearchProgression(): Promise<ResearchProgressionSnapshot> {
+  return requestJson<ResearchProgressionSnapshot>("/api/research");
+}
+
+export function setResearchFocus(intent: ResearchFocusIntent): Promise<ResearchProgressionSnapshot> {
+  return requestJson<ResearchProgressionSnapshot>("/api/research/focus", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ assetId: intent.assetId })
+  });
 }
 
 /** Loads bounded, public-only archive context for Stories or a visible chart range. */

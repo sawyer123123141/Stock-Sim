@@ -1,12 +1,19 @@
 import { formatMoney } from "../format";
+import type { ResearchObjective } from "../../../../packages/shared/src/index";
 
 export interface MarketHeaderProps {
   totalValue: number;
   cash: number;
-  ownedAssetCount: number;
+  objective: ResearchObjective;
 }
 
-export function MarketHeader({ totalValue, cash, ownedAssetCount }: MarketHeaderProps) {
+const objectiveCopy: Record<ResearchObjective, string> = {
+  "make-first-stock-investment": "Make your first stock investment",
+  "choose-research-focus": "Choose a company to research",
+  "broaden-investing": "Explore more than one investment"
+};
+
+export function MarketHeader({ totalValue, cash, objective }: MarketHeaderProps) {
   return (
     <header className="market-header">
       <div className="brand-lockup" aria-label="Market Era">
@@ -28,7 +35,7 @@ export function MarketHeader({ totalValue, cash, ownedAssetCount }: MarketHeader
         </div>
         <div className="objective-chip" aria-label="Next objective">
           <span>NEXT OBJECTIVE</span>
-          <strong>{ownedAssetCount < 2 ? `Own 2 assets · ${ownedAssetCount} / 2` : "First steps complete"}</strong>
+          <strong>{objectiveCopy[objective]}</strong>
         </div>
         <div className="account-stat">
           <span>Cash</span>

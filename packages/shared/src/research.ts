@@ -1,8 +1,7 @@
 import type {
   CompanyRelationshipKind,
   ExpectationResearchLevel,
-  CompanyResearchLevel,
-  StockResearchSnapshot
+  CompanyResearchLevel
 } from "./market.js";
 
 export type ResearchObjective =
@@ -35,5 +34,3 @@ export interface ResearchProgressionSnapshot {
   activeStockAssetId?: string;
   brief?: FocusedStockResearchBrief;
 }
-
-export type StockResearchLabels = StockResearchSnapshot;

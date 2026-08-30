@@ -45,8 +45,8 @@ test("Market Network surfaces direction-aware company and research context witho
 
   assert.match(company, /BUSINESS CONNECTIONS/);
   assert.match(company, /Battery technology supplier/);
-  assert.match(research, /MARKET CONNECTIONS/);
-  assert.match(research, /outside battery technology/);
+  assert.match(research, /Market connections/);
+  assert.match(research, /research\.brief\.context/);
   assert.match(history, /RELATED COMPANY/);
   assert.match(chart, /Related company information/);
   assert.doesNotMatch(`${company}\n${research}\n${history}\n${chart}`, /reactionEffect|expectationDeltas|luma-nova-supplier|0\.14/);

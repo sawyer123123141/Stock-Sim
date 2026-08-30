@@ -121,11 +121,11 @@ test("stage 1 trade flow is one whole-unit Buy Sell path without advanced orders
   assert.doesNotMatch(combined, /Limit Order|Stop Loss|Take Profit|Margin|Leverage/);
 });
 
-test("stage 1 keeps one movement story, header objective access, and responsive accessible polish", async () => {
-  const [app, story, objective, styles, tradeStyles, insightStyles, readme] = await Promise.all([
+test("stage 1 keeps one movement story, server-owned objective access, and responsive accessible polish", async () => {
+  const [app, story, header, styles, tradeStyles, insightStyles, readme] = await Promise.all([
     text("apps/web/src/App.tsx"),
     text("apps/web/src/components/MovementStory.tsx"),
-    text("apps/web/src/components/NextObjective.tsx"),
+    text("apps/web/src/components/MarketHeader.tsx"),
     text("apps/web/src/styles.css"),
     text("apps/web/src/trade.css"),
     text("apps/web/src/insights.css"),
@@ -134,13 +134,13 @@ test("stage 1 keeps one movement story, header objective access, and responsive 
 
   assert.equal((app.match(/<MovementStory/g) ?? []).length, 1);
   assert.equal((app.match(/<NextObjective/g) ?? []).length, 0);
-  assert.match(app, /<MarketHeader[^>]*ownedAssetCount/);
+  assert.match(app, /objective=\{session\.research\?\.objective/);
   assert.match(story, /reasons\[0\]/);
   assert.match(story, /strongestReason\?\.direction/);
   assert.match(story, /aria-expanded/);
   assert.match(story, /No major driver is dominating this move right now\./);
-  assert.match(objective, /Make your first investment/);
-  assert.match(objective, /Own 2 different assets/);
+  assert.match(header, /make-first-stock-investment/);
+  assert.match(header, /choose-research-focus/);
   assert.match(`${styles}\n${tradeStyles}\n${insightStyles}`, /@media\s*\(max-width:/);
   assert.match(`${styles}\n${tradeStyles}\n${insightStyles}`, /prefers-reduced-motion/);
   assert.match(readme, /npm run start:server/);
@@ -149,11 +149,11 @@ test("stage 1 keeps one movement story, header objective access, and responsive 
 });
 
 test("stage 1.1 keeps the first minutes focused and makes feedback feel consequential", async () => {
-  const [app, session, ticket, objective, chart, styles, tradeStyles] = await Promise.all([
+  const [app, session, ticket, header, chart, styles, tradeStyles] = await Promise.all([
     text("apps/web/src/App.tsx"),
     text("apps/web/src/useMarketSession.ts"),
     text("apps/web/src/components/TradeTicket.tsx"),
-    text("apps/web/src/components/NextObjective.tsx"),
+    text("apps/web/src/components/MarketHeader.tsx"),
     text("apps/web/src/components/PriceChart.tsx"),
     text("apps/web/src/styles.css"),
     text("apps/web/src/trade.css")
@@ -169,8 +169,8 @@ test("stage 1.1 keeps the first minutes focused and makes feedback feel conseque
   assert.match(ticket, /Bought|Sold/);
   assert.match(polishStyles, /trade-success/);
 
-  assert.match(objective, /First steps complete/);
-  assert.match(objective, /ownedAssets\s*>=\s*2/);
+  assert.match(header, /Explore more than one investment/);
+  assert.doesNotMatch(session, /rememberOwnedAssetIds/);
 
   assert.doesNotMatch(chart, /atMs:\s*samples\[0\]\.atMs\s*\+\s*1/, "the chart must not fabricate a second history point");
   assert.match(chart, /Waiting for the next live update/);
