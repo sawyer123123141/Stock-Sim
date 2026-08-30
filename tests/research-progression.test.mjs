@@ -106,4 +106,3 @@ test("Research Focus has no shared market, runtime, RNG, canonical-time, or port
   assert.deepEqual(await authority.getPortfolio(), portfolioBefore);
   assert.equal(session.store.state.nextTradeId, nextTradeIdBefore);
 });
-
