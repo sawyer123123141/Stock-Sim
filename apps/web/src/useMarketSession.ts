@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AssetSnapshot,
   MarketSnapshot,
   PortfolioPositionSnapshot,
   PortfolioSnapshot,
+  ResearchProgressionSnapshot,
   TradeExecutionResponse,
   TradeFill,
   TradeSide
 } from "../../../packages/shared/src/index";
-import { fetchMarket, fetchPortfolio, openMarketUpdates, submitTrade } from "./api";
-import { rememberOwnedAssetIds } from "./firstSessionProgress";
+import { fetchMarket, fetchPortfolio, fetchResearchProgression, openMarketUpdates, setResearchFocus, submitTrade } from "./api";
 import {
   applyMarketSnapshot,
   type MarketSnapshotState,
@@ -31,7 +31,10 @@ export interface MarketSession {
   selectedPosition: PortfolioPositionSnapshot | null;
   selectedHistory: PriceSample[];
   priceHistory: PriceHistory;
-  firstSessionOwnedAssetCount: number;
+  research: ResearchProgressionSnapshot | null;
+  researchPending: boolean;
+  researchError: string | null;
+  focusResearch(assetId: string): Promise<ResearchProgressionSnapshot | null>;
   selectAsset(assetId: string): void;
   trade(side: TradeSide, quantity: number): Promise<TradeExecutionResponse | null>;
   tradePending: boolean;
@@ -54,13 +57,35 @@ export function useMarketSession(): MarketSession {
   const [error, setError] = useState<string | null>(null);
   const [connectionNotice, setConnectionNotice] = useState<string | null>(null);
   const [selectedAssetId, setSelectedAssetId] = useState("nova");
-  const [firstSessionAssetIds, setFirstSessionAssetIds] = useState<string[]>([]);
   const [tradePending, setTradePending] = useState(false);
   const [tradeError, setTradeError] = useState<string | null>(null);
   const [lastTrade, setLastTrade] = useState<TradeFill | null>(null);
+  const [research, setResearch] = useState<ResearchProgressionSnapshot | null>(null);
+  const [researchPending, setResearchPending] = useState(false);
+  const [researchError, setResearchError] = useState<string | null>(null);
+  const researchRequestId = useRef(0);
 
   const applySnapshot = useCallback((snapshot: MarketSnapshot) => {
     setSnapshotState((previous) => applyMarketSnapshot(previous, snapshot));
+  }, []);
+
+  const refreshResearch = useCallback(async (): Promise<ResearchProgressionSnapshot | null> => {
+    const requestId = researchRequestId.current + 1;
+    researchRequestId.current = requestId;
+    setResearchPending(true);
+    try {
+      const next = await fetchResearchProgression();
+      if (researchRequestId.current === requestId) {
+        setResearch(next);
+        setResearchError(null);
+      }
+      return next;
+    } catch (researchFailure) {
+      if (researchRequestId.current === requestId) setResearchError(errorMessage(researchFailure));
+      return null;
+    } finally {
+      if (researchRequestId.current === requestId) setResearchPending(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -71,6 +96,7 @@ export function useMarketSession(): MarketSession {
         if (cancelled) return;
         setConnectionNotice(null);
         applySnapshot(snapshot);
+        void refreshResearch();
       },
       (message) => {
         if (!cancelled) setConnectionNotice(message);
@@ -82,7 +108,6 @@ export function useMarketSession(): MarketSession {
         if (cancelled) return;
         applySnapshot(initialMarket);
         setPortfolio(initialPortfolio);
-        setFirstSessionAssetIds((previous) => rememberOwnedAssetIds(previous, initialPortfolio.positions));
         const preferred = initialMarket.assets.find((asset) => asset.id === "nova")
           ?? initialMarket.assets[0];
         if (preferred) setSelectedAssetId(preferred.id);
@@ -95,11 +120,13 @@ export function useMarketSession(): MarketSession {
         if (!cancelled) setLoading(false);
       });
 
+    void refreshResearch();
+
     return () => {
       cancelled = true;
       socket.close();
     };
-  }, [applySnapshot]);
+  }, [applySnapshot, refreshResearch]);
 
   const selectAsset = useCallback((assetId: string) => {
     setSelectedAssetId(assetId);
@@ -138,8 +165,8 @@ export function useMarketSession(): MarketSession {
     try {
       const result = await submitTrade({ assetId: selectedAssetId, side, quantity });
       setPortfolio(result.portfolio);
-      setFirstSessionAssetIds((previous) => rememberOwnedAssetIds(previous, result.portfolio.positions));
       setLastTrade(result.fill);
+      void refreshResearch();
       return result;
     } catch (tradeFailure) {
       setTradeError(errorMessage(tradeFailure));
@@ -147,7 +174,23 @@ export function useMarketSession(): MarketSession {
     } finally {
       setTradePending(false);
     }
-  }, [selectedAssetId, tradePending]);
+  }, [refreshResearch, selectedAssetId, tradePending]);
+
+  const focusResearch = useCallback(async (assetId: string): Promise<ResearchProgressionSnapshot | null> => {
+    setResearchPending(true);
+    setResearchError(null);
+    try {
+      const next = await setResearchFocus({ assetId });
+      researchRequestId.current += 1;
+      setResearch(next);
+      return next;
+    } catch (researchFailure) {
+      setResearchError(errorMessage(researchFailure));
+      return null;
+    } finally {
+      setResearchPending(false);
+    }
+  }, []);
 
   return {
     market: snapshotState.market,
@@ -160,7 +203,10 @@ export function useMarketSession(): MarketSession {
     selectedPosition,
     selectedHistory,
     priceHistory: snapshotState.priceHistory,
-    firstSessionOwnedAssetCount: firstSessionAssetIds.length,
+    research,
+    researchPending,
+    researchError,
+    focusResearch,
     selectAsset,
     trade,
     tradePending,

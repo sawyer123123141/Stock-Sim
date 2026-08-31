@@ -16,8 +16,8 @@
   "include": [
     "packages/**/*.ts",
     "apps/server/**/*.ts",
+    "api/**/*.ts",
     "apps/web/src/portfolioProjection.ts",
-    "apps/web/src/firstSessionProgress.ts",
     "apps/web/src/marketSnapshotState.ts"
   ]
 }

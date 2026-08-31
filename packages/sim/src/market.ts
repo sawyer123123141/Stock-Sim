@@ -17,7 +17,6 @@ import type {
 import { combinedPrimaryEventEffect, combinedRelationshipEventEffect, eventEffectForAsset } from "./events.js";
 import { companyRelationshipSnapshots } from "./companyRelationships.js";
 import { calculateMarketRead } from "./marketRead.js";
-import { toStockResearchSnapshot } from "./research.js";
 import type { RandomSource } from "./rng.js";
 import { tickAsset } from "./tick.js";
 
@@ -61,7 +60,6 @@ export function toMarketSnapshot(
     generatedAt: new Date(generatedAtMs).toISOString(),
     storyRecentWindowMs: RECENT_STORY_WINDOW_MS,
     assets: state.assets.map((asset) => {
-      const research = toStockResearchSnapshot(asset);
       return {
         id: asset.id,
         symbol: asset.symbol,
@@ -71,7 +69,6 @@ export function toMarketSnapshot(
         price: asset.price,
         lastTickChangePct: asset.lastTickChangePct,
         marketRead: marketReadByAsset[asset.id] ?? calculateMarketRead(asset, ZERO_PRESSURE),
-        ...(research ? { research } : {}),
         ...(asset.kind === "stock" ? { relationships: companyRelationshipSnapshots(asset, state.assets) } : {}),
         reasons: asset.reasons.map((reason) => ({
           code: reason.code,

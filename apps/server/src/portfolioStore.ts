@@ -1,3 +1,5 @@
+import type { PlayerResearchState } from "./playerResearch.js";
+
 export interface StoredPosition {
   quantity: number;
   costBasisCents: number;
@@ -7,6 +9,7 @@ export interface PortfolioState {
   playerId: string;
   cashCents: number;
   positions: Record<string, StoredPosition>;
+  research?: PlayerResearchState;
 }
 
 export interface PortfolioStore {
@@ -28,7 +31,8 @@ function clonePortfolio(portfolio: PortfolioState): PortfolioState {
         assetId,
         { quantity: position.quantity, costBasisCents: position.costBasisCents }
       ])
-    )
+    ),
+    ...(portfolio.research ? { research: { ...portfolio.research } } : {})
   };
 }
 
