@@ -134,13 +134,15 @@ test("stage 1 keeps one movement story, server-owned objective access, and respo
 
   assert.equal((app.match(/<MovementStory/g) ?? []).length, 1);
   assert.equal((app.match(/<NextObjective/g) ?? []).length, 0);
-  assert.match(app, /objective=\{session\.research\?\.objective/);
+  assert.match(app, /onboardingComplete=\{session\.research\?\.onboardingComplete/);
   assert.match(story, /reasons\[0\]/);
   assert.match(story, /strongestReason\?\.direction/);
   assert.match(story, /aria-expanded/);
   assert.match(story, /No major driver is dominating this move right now\./);
   assert.match(header, /make-first-stock-investment/);
   assert.match(header, /choose-research-focus/);
+  assert.match(header, /build-small-stock-portfolio/);
+  assert.match(header, /INVESTOR STAGE/);
   assert.match(`${styles}\n${tradeStyles}\n${insightStyles}`, /@media\s*\(max-width:/);
   assert.match(`${styles}\n${tradeStyles}\n${insightStyles}`, /prefers-reduced-motion/);
   assert.match(readme, /npm run start:server/);
@@ -169,7 +171,7 @@ test("stage 1.1 keeps the first minutes focused and makes feedback feel conseque
   assert.match(ticket, /Bought|Sold/);
   assert.match(polishStyles, /trade-success/);
 
-  assert.match(header, /Explore more than one investment/);
+  assert.match(header, /Build a small stock portfolio/);
   assert.doesNotMatch(session, /rememberOwnedAssetIds/);
 
   assert.doesNotMatch(chart, /atMs:\s*samples\[0\]\.atMs\s*\+\s*1/, "the chart must not fabricate a second history point");

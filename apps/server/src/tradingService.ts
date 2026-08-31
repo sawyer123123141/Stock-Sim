@@ -6,7 +6,8 @@ import type {
   TradingErrorCode
 } from "../../../packages/shared/src/index.js";
 import type { MarketRuntime } from "./marketRuntime.js";
-import { markFirstStockPurchase } from "./playerResearch.js";
+import { markFirstStockPurchase, normalizePlayerResearchState } from "./playerResearch.js";
+import { reconcileEarlyProgression } from "./playerProgression.js";
 import type { PortfolioState, PortfolioStore } from "./portfolioStore.js";
 
 export class TradingError extends Error {
@@ -75,6 +76,22 @@ function clonePortfolio(portfolio: PortfolioState): PortfolioState {
       ])
     )
   };
+}
+
+function reconcilePortfolioProgression(portfolio: PortfolioState, runtime: MarketRuntime): void {
+  const research = normalizePlayerResearchState(portfolio.research);
+  const stockIds = new Set(
+    runtime.snapshot().assets.filter((asset) => asset.kind === "stock").map((asset) => asset.id)
+  );
+  const hasValidFocus = research.activeStockAssetId !== undefined
+    && runtime.researchBriefForAsset(research.activeStockAssetId)?.assetId === research.activeStockAssetId;
+  portfolio.progression = reconcileEarlyProgression(portfolio.progression, {
+    firstStockPurchaseComplete: research.firstStockPurchaseComplete,
+    hasValidFocus,
+    distinctPositiveStockCount: Object.entries(portfolio.positions).filter(
+      ([assetId, position]) => stockIds.has(assetId) && position.quantity > 0
+    ).length
+  });
 }
 
 function derivePortfolio(portfolio: PortfolioState, runtime: MarketRuntime): PortfolioSnapshot {
@@ -162,6 +179,7 @@ export function createTradingService(options: TradingServiceOptions): TradingSer
         if (asset.kind === "stock" && position.quantity > 0) {
           portfolio.research = markFirstStockPurchase(portfolio.research);
         }
+        reconcilePortfolioProgression(portfolio, options.runtime);
       } else {
         if (!existing || existing.quantity < intent.quantity) {
           throw new TradingError("INSUFFICIENT_HOLDINGS", "Not enough units to sell.");

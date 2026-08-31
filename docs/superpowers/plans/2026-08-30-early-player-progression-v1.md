@@ -75,7 +75,7 @@ assert.equal(afterCompletion.stage, "independent-investor");
 assert.equal(afterCompletion.objective, undefined);
 ```
 
-Run: `npm run build && node --test tests/research-progression.test.mjs`  
+Run: `npm run build && node --test tests/research-progression.test.mjs`
 Expected: FAIL because stage/onboarding fields and the final objective do not exist.
 
 - [ ] **Step 2: Implement the smallest pure model**
@@ -84,7 +84,7 @@ Normalize missing/malformed progression to `{ independentInvestorComplete: false
 
 - [ ] **Step 3: Run focused verification**
 
-Run: `npm run build && node --test tests/research-progression.test.mjs && npm run typecheck`  
+Run: `npm run build && node --test tests/research-progression.test.mjs && npm run typecheck`
 Expected: TypeScript compiles, while lifecycle assertions still fail specifically because Task 2 has not invoked the helper from authoritative Research/trade mutations.
 
 - [ ] **Step 4: Commit**
@@ -130,7 +130,7 @@ Add independent tests for same-stock twice, stock plus crypto, stale/crypto focu
 - stale/invalid focus does not; and
 - a reconciliation call changes neither runtime/market/RNG/canonical time/pressure nor portfolio cash/positions.
 
-Run: `npm run build && node --test tests/research-progression.test.mjs tests/research-api.test.mjs`  
+Run: `npm run build && node --test tests/research-progression.test.mjs tests/research-api.test.mjs`
 Expected: FAIL because current service/trading code never writes or projects the final milestone.
 
 - [ ] **Step 2: Implement one facts resolver**
@@ -159,7 +159,7 @@ Keep existing `unlocked`, `coverageCapacity`, active focus, and focused safe bri
 
 - [ ] **Step 4: Verify and commit**
 
-Run: `npm run build && node --test tests/research-progression.test.mjs tests/research-api.test.mjs tests/persistent-game-authority.test.mjs && npm run typecheck`  
+Run: `npm run build && node --test tests/research-progression.test.mjs tests/research-api.test.mjs tests/persistent-game-authority.test.mjs && npm run typecheck`
 Expected: PASS, including restart and concurrent operation coverage.
 
 ```bash
@@ -190,7 +190,7 @@ assert.doesNotMatch(header, /XP|level|progress bar|achievement/i);
 assert.match(styles, /@media \(max-width: 560px\)/);
 ```
 
-Run: `node --test tests/web-research-progression-v1.test.mjs tests/web-static.test.mjs`  
+Run: `node --test tests/web-research-progression-v1.test.mjs tests/web-static.test.mjs`
 Expected: FAIL because the header currently requires an objective and has no stage state/copy.
 
 - [ ] **Step 2: Implement the smallest header branch**
@@ -211,7 +211,7 @@ Add only CSS needed to preserve existing header wrapping/no overflow at 560px an
 
 - [ ] **Step 3: Verify and commit**
 
-Run: `node --test tests/web-research-progression-v1.test.mjs tests/web-static.test.mjs && npm run build:web && npm run typecheck`  
+Run: `node --test tests/web-research-progression-v1.test.mjs tests/web-static.test.mjs && npm run build:web && npm run typecheck`
 Expected: PASS; stock/crypto tabs and keyboard controls remain unchanged.
 
 ```bash

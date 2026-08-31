@@ -4,6 +4,7 @@ import type {
 } from "../../../packages/shared/src/index.js";
 import type { MarketRuntime } from "./marketRuntime.js";
 import { normalizePlayerResearchState, toResearchProgressionSnapshot } from "./playerResearch.js";
+import { projectPlayerProgression, reconcileEarlyProgression } from "./playerProgression.js";
 import type { PortfolioStore } from "./portfolioStore.js";
 
 export type ResearchErrorCode = "RESEARCH_LOCKED" | "RESEARCH_ASSET_NOT_FOUND" | "RESEARCH_STOCK_REQUIRED" | "INVALID_RESEARCH_FOCUS";
@@ -35,6 +36,26 @@ function resolveResearchState(value: unknown, runtime: MarketRuntime): ResolvedR
   };
 }
 
+function reconcilePortfolioProgression(
+  portfolio: Awaited<ReturnType<PortfolioStore["read"]>>,
+  runtime: MarketRuntime,
+  resolved: ResolvedResearchState
+) {
+  const stockIds = new Set(
+    runtime.snapshot().assets.filter((asset) => asset.kind === "stock").map((asset) => asset.id)
+  );
+  const facts = {
+    firstStockPurchaseComplete: resolved.state.firstStockPurchaseComplete,
+    hasValidFocus: resolved.state.activeStockAssetId !== undefined
+      && resolved.brief?.assetId === resolved.state.activeStockAssetId,
+    distinctPositiveStockCount: Object.entries(portfolio.positions).filter(
+      ([assetId, position]) => stockIds.has(assetId) && position.quantity > 0
+    ).length
+  };
+  const progression = reconcileEarlyProgression(portfolio.progression, facts);
+  return { progression, projection: projectPlayerProgression(progression, facts) };
+}
+
 export function createResearchService(options: {
   runtime: MarketRuntime;
   store: PortfolioStore;
@@ -43,7 +64,9 @@ export function createResearchService(options: {
     return options.store.transact(playerId, (portfolio) => {
       const resolved = resolveResearchState(portfolio.research, options.runtime);
       portfolio.research = resolved.state;
-      return toResearchProgressionSnapshot(resolved.state, resolved.brief);
+      const next = reconcilePortfolioProgression(portfolio, options.runtime, resolved);
+      portfolio.progression = next.progression;
+      return toResearchProgressionSnapshot(resolved.state, resolved.brief, next.projection);
     });
   }
 
@@ -68,7 +91,10 @@ export function createResearchService(options: {
       if (!brief) throw new ResearchError("RESEARCH_STOCK_REQUIRED", "Research is unavailable for this stock.");
       const next = { ...research, activeStockAssetId: asset.id };
       portfolio.research = next;
-      return toResearchProgressionSnapshot(next, brief);
+      const resolved = { state: next, brief };
+      const progression = reconcilePortfolioProgression(portfolio, options.runtime, resolved);
+      portfolio.progression = progression.progression;
+      return toResearchProgressionSnapshot(next, brief, progression.projection);
     });
   }
 

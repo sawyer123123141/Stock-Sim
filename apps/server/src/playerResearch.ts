@@ -1,5 +1,6 @@
 import type {
   FocusedStockResearchBrief,
+  PlayerProgressionStage,
   ResearchObjective,
   ResearchProgressionSnapshot
 } from "../../../packages/shared/src/index.js";
@@ -30,21 +31,23 @@ export function markFirstStockPurchase(value: unknown): PlayerResearchState {
   return state.firstStockPurchaseComplete ? state : { ...state, firstStockPurchaseComplete: true };
 }
 
-export function researchObjective(state: PlayerResearchState, hasValidFocus = Boolean(state.activeStockAssetId)): ResearchObjective {
-  if (!state.firstStockPurchaseComplete) return "make-first-stock-investment";
-  return hasValidFocus ? "broaden-investing" : "choose-research-focus";
-}
-
 export function toResearchProgressionSnapshot(
   value: unknown,
-  brief?: FocusedStockResearchBrief
+  brief: FocusedStockResearchBrief | undefined,
+  progression: {
+    stage: PlayerProgressionStage;
+    onboardingComplete: boolean;
+    objective?: ResearchObjective;
+  }
 ): ResearchProgressionSnapshot {
   const state = normalizePlayerResearchState(value);
   const hasValidFocus = state.activeStockAssetId !== undefined && brief?.assetId === state.activeStockAssetId;
   return {
     unlocked: state.firstStockPurchaseComplete,
     coverageCapacity: 1,
-    objective: researchObjective(state, hasValidFocus),
+    stage: progression.stage,
+    onboardingComplete: progression.onboardingComplete,
+    ...(progression.objective ? { objective: progression.objective } : {}),
     ...(hasValidFocus && state.activeStockAssetId ? { activeStockAssetId: state.activeStockAssetId } : {}),
     ...(hasValidFocus && brief ? { brief } : {})
   };

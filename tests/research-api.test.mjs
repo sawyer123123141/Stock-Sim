@@ -21,6 +21,8 @@ test("research routes expose only the focused player brief and stable validation
     assert.deepEqual(initial.json(), {
       unlocked: false,
       coverageCapacity: 1,
+      stage: "new-investor",
+      onboardingComplete: false,
       objective: "make-first-stock-investment"
     });
 

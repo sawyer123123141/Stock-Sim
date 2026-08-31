@@ -1,7 +1,7 @@
 # Early Player Progression V1 Design
 
-**Status:** Approved design, amended before implementation.  
-**Scope:** the first durable player-progression loop after Research Progression V1.  
+**Status:** Approved design, amended before implementation.
+**Scope:** the first durable player-progression loop after Research Progression V1.
 **Prerequisite:** merged `main` at `056619d15002d7ad32e82bc71f2c6eac4ec07649` (PR #29).
 
 ## 1. Decision
@@ -99,15 +99,15 @@ This model is the smallest structure that provides direction now and a stable ca
 
 ### Objective 1 — Make your first stock investment
 
-**Entry:** fresh player; `firstStockPurchaseComplete` is false.  
-**Completion:** a successful authoritative Buy creates a positive position in any stock.  
+**Entry:** fresh player; `firstStockPurchaseComplete` is false.
+**Completion:** a successful authoritative Buy creates a positive position in any stock.
 **Does not complete:** crypto Buy, rejected Buy, Sell, price movement, cash balance, time online, public-story clicks, or profit/loss.
 
 **Reward:** unlock the existing one-slot Research Focus capability. The Research tab changes from its compact locked explanation to the actionable coverage state. The objective advances immediately from the authoritative trade result, not browser memory.
 
 ### Objective 2 — Choose a company to research
 
-**Entry:** Research is unlocked and there is no valid active stock focus.  
+**Entry:** Research is unlocked and there is no valid active stock focus.
 **Completion:** the player successfully selects any valid stock as Research Focus through the server-owned focus action. The player does not need to own that stock.
 
 **Does not complete:** selecting an asset locally, opening the Research tab, selecting crypto, a rejected focus request, a research refresh, or switching focus repeatedly after a focus already exists.
@@ -116,7 +116,7 @@ This model is the smallest structure that provides direction now and a stable ca
 
 ### Objective 3 — Build a small stock portfolio
 
-**Entry:** Research Focus is valid and early onboarding has not completed.  
+**Entry:** Research Focus is valid and early onboarding has not completed.
 **Header wording:** “Build a small stock portfolio.”
 
 **Completion:** at the end of one successful authoritative portfolio mutation, the player holds positive positions in at least two distinct stock asset IDs. This is observed once and retained as a durable milestone. It can happen in either natural order:

@@ -63,6 +63,8 @@ export function App() {
         totalValue={session.portfolio.totalValue}
         cash={session.portfolio.cash}
         objective={session.research?.objective ?? "make-first-stock-investment"}
+        onboardingComplete={session.research?.onboardingComplete ?? false}
+        stage={session.research?.stage ?? "new-investor"}
       />
 
       {session.connectionNotice && (

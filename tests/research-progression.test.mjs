@@ -39,6 +39,8 @@ test("legacy player starts locked and only a successful stock buy unlocks persis
   assert.deepEqual(await authority.getResearch(), {
     unlocked: false,
     coverageCapacity: 1,
+    stage: "new-investor",
+    onboardingComplete: false,
     objective: "make-first-stock-investment"
   });
   await assert.rejects(
@@ -59,6 +61,8 @@ test("legacy player starts locked and only a successful stock buy unlocks persis
   assert.deepEqual(await authority.getResearch(), {
     unlocked: true,
     coverageCapacity: 1,
+    stage: "new-investor",
+    onboardingComplete: false,
     objective: "choose-research-focus"
   });
 
@@ -93,7 +97,7 @@ test("Research Focus accepts any stock, rejects crypto or unknown assets, and pe
 
   const restarted = await session.authority().getResearch();
   assert.equal(restarted.activeStockAssetId, "hgrid");
-  assert.equal(restarted.objective, "broaden-investing");
+  assert.equal(restarted.objective, "build-small-stock-portfolio");
 });
 
 test("Research Focus has no shared market, runtime, RNG, canonical-time, or portfolio effect", async () => {
@@ -126,6 +130,8 @@ test("locked malformed Research state has no focus or brief and does not auto-fo
   assert.deepEqual(locked, {
     unlocked: false,
     coverageCapacity: 1,
+    stage: "new-investor",
+    onboardingComplete: false,
     objective: "make-first-stock-investment"
   });
   assert.doesNotMatch(JSON.stringify(locked), /activeStockAssetId|brief|company|expectations/i);
@@ -134,6 +140,8 @@ test("locked malformed Research state has no focus or brief and does not auto-fo
   assert.deepEqual(await authority.getResearch(), {
     unlocked: true,
     coverageCapacity: 1,
+    stage: "new-investor",
+    onboardingComplete: false,
     objective: "choose-research-focus"
   });
 });
@@ -152,8 +160,100 @@ test("unlocked stale crypto or missing Research Focus resolves to no focus and n
     assert.deepEqual(research, {
       unlocked: true,
       coverageCapacity: 1,
+      stage: "new-investor",
+      onboardingComplete: false,
       objective: "choose-research-focus"
     });
     assert.doesNotMatch(JSON.stringify(research), /activeStockAssetId|brief|company|expectations/i);
+  }
+});
+
+test("early progression completes in either stock/focus order and does not regress after a sell", async () => {
+  const focusFirst = createClockedAuthority();
+  const focusFirstAuthority = focusFirst.authority();
+  await focusFirstAuthority.executeTrade({ assetId: "nova", side: "buy", quantity: 1 });
+  await focusFirstAuthority.setResearchFocus({ assetId: "nova" });
+  assert.equal((await focusFirstAuthority.getResearch()).objective, "build-small-stock-portfolio");
+  await focusFirstAuthority.executeTrade({ assetId: "luma", side: "buy", quantity: 1 });
+  assert.deepEqual(await focusFirstAuthority.getResearch(), {
+    unlocked: true,
+    coverageCapacity: 1,
+    stage: "independent-investor",
+    onboardingComplete: true,
+    activeStockAssetId: "nova",
+    brief: (await focusFirstAuthority.getResearch()).brief
+  });
+  await focusFirstAuthority.executeTrade({ assetId: "luma", side: "sell", quantity: 1 });
+  assert.equal((await focusFirst.authority().getResearch()).stage, "independent-investor");
+
+  const stocksFirst = createClockedAuthority();
+  const stocksFirstAuthority = stocksFirst.authority();
+  await stocksFirstAuthority.executeTrade({ assetId: "nova", side: "buy", quantity: 1 });
+  await stocksFirstAuthority.executeTrade({ assetId: "luma", side: "buy", quantity: 1 });
+  assert.equal((await stocksFirstAuthority.getResearch()).objective, "choose-research-focus");
+  await stocksFirstAuthority.setResearchFocus({ assetId: "nova" });
+  assert.equal((await stocksFirst.authority().getResearch()).onboardingComplete, true);
+});
+
+test("early progression excludes duplicate stock buys and crypto holdings", async () => {
+  const session = createClockedAuthority();
+  const authority = session.authority();
+  await authority.executeTrade({ assetId: "nova", side: "buy", quantity: 2 });
+  await authority.setResearchFocus({ assetId: "nova" });
+  assert.equal((await authority.getResearch()).objective, "build-small-stock-portfolio");
+  await authority.executeTrade({ assetId: "pulse", side: "buy", quantity: 1 });
+  assert.equal((await authority.getResearch()).onboardingComplete, false);
+});
+
+test("concurrent stock purchase and focus changes serialize to one valid progression state", async () => {
+  const session = createClockedAuthority();
+  const authority = session.authority();
+  await authority.executeTrade({ assetId: "nova", side: "buy", quantity: 1 });
+
+  await Promise.all([
+    authority.setResearchFocus({ assetId: "nova" }),
+    authority.executeTrade({ assetId: "luma", side: "buy", quantity: 1 })
+  ]);
+
+  const research = await authority.getResearch();
+  assert.equal(research.stage, "independent-investor");
+  assert.equal(research.onboardingComplete, true);
+  assert.equal(session.store.state.portfolio.progression.independentInvestorComplete, true);
+});
+
+test("currently provable legacy progression reconciles without changing shared market state", async () => {
+  const session = createClockedAuthority();
+  const authority = session.authority();
+  session.store.state.portfolio.positions = {
+    nova: { quantity: 1, costBasisCents: 100 },
+    luma: { quantity: 1, costBasisCents: 100 }
+  };
+  session.store.state.portfolio.research = { firstStockPurchaseComplete: true, activeStockAssetId: "nova" };
+  delete session.store.state.portfolio.progression;
+  const runtimeBefore = structuredClone(session.store.state.runtime);
+  const marketBefore = await authority.getMarket();
+  const portfolioBefore = await authority.getPortfolio();
+  const reconciled = await authority.getResearch();
+  assert.equal(reconciled.stage, "independent-investor");
+  assert.equal(session.store.state.portfolio.progression.independentInvestorComplete, true);
+  assert.deepEqual(session.store.state.runtime, runtimeBefore);
+  assert.deepEqual(await authority.getMarket(), marketBefore);
+  assert.deepEqual(await authority.getPortfolio(), portfolioBefore);
+});
+
+test("unprovable legacy history stays incomplete", async () => {
+  const variants = [
+    { positions: { nova: { quantity: 1, costBasisCents: 100 } }, research: { firstStockPurchaseComplete: true, activeStockAssetId: "nova" } },
+    { positions: { nova: { quantity: 1, costBasisCents: 100 }, pulse: { quantity: 1, costBasisCents: 100 } }, research: { firstStockPurchaseComplete: true, activeStockAssetId: "nova" } },
+    { positions: { nova: { quantity: 1, costBasisCents: 100 }, luma: { quantity: 1, costBasisCents: 100 } }, research: { firstStockPurchaseComplete: true, activeStockAssetId: "pulse" } }
+  ];
+  for (const variant of variants) {
+    const session = createClockedAuthority();
+    session.store.state.portfolio.positions = variant.positions;
+    session.store.state.portfolio.research = variant.research;
+    delete session.store.state.portfolio.progression;
+    const research = await session.authority().getResearch();
+    assert.equal(research.onboardingComplete, false);
+    assert.notEqual(research.stage, "independent-investor");
   }
 });
