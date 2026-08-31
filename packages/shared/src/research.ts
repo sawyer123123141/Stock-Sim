@@ -7,7 +7,9 @@ import type {
 export type ResearchObjective =
   | "make-first-stock-investment"
   | "choose-research-focus"
-  | "broaden-investing";
+  | "build-small-stock-portfolio";
+
+export type PlayerProgressionStage = "new-investor" | "independent-investor";
 
 export interface ResearchFocusIntent {
   assetId: string;
@@ -30,7 +32,9 @@ export interface FocusedStockResearchBrief {
 export interface ResearchProgressionSnapshot {
   unlocked: boolean;
   coverageCapacity: 1;
-  objective: ResearchObjective;
+  stage: PlayerProgressionStage;
+  onboardingComplete: boolean;
+  objective?: ResearchObjective;
   activeStockAssetId?: string;
   brief?: FocusedStockResearchBrief;
 }

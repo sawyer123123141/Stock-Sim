@@ -29,10 +29,15 @@ test("Research UI renders locked, unfocused, and focused states from player rese
   assert.match(panel, /high: "Investors expect strong demand"/);
   assert.doesNotMatch(panel, /asset\.research/);
   assert.match(header, /make-first-stock-investment/);
+  assert.match(header, /build-small-stock-portfolio/);
+  assert.match(header, /INVESTOR STAGE/);
+  assert.match(header, /Independent Investor/);
+  assert.doesNotMatch(header, /\bXP\b|Investor Level|Progress Bar|Achievement/i);
   assert.match(app, /focusResearch/);
   assert.match(tabs, /asset\.kind === "stock"/);
   assert.match(styles, /@media \(max-width: 560px\)/);
   assert.match(styles, /\.research-row/);
+  assert.match(styles, /objective-chip-stage/);
 });
 
 test("successful trade completion does not await the secondary Research refresh", async () => {

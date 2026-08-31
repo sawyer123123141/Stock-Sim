@@ -25,7 +25,8 @@ export function createInitialGameState(startedAtMs: number): PersistedGameState 
       playerId: DEMO_PLAYER_ID,
       cashCents: 1_000_000,
       positions: {},
-      research: { firstStockPurchaseComplete: false }
+      research: { firstStockPurchaseComplete: false },
+      progression: { independentInvestorComplete: false }
     },
     nextTradeId: 1
   };

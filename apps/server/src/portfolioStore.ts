@@ -1,4 +1,5 @@
 import type { PlayerResearchState } from "./playerResearch.js";
+import type { PlayerEarlyProgressionState } from "./playerProgression.js";
 
 export interface StoredPosition {
   quantity: number;
@@ -10,6 +11,7 @@ export interface PortfolioState {
   cashCents: number;
   positions: Record<string, StoredPosition>;
   research?: PlayerResearchState;
+  progression?: PlayerEarlyProgressionState;
 }
 
 export interface PortfolioStore {
@@ -32,7 +34,8 @@ function clonePortfolio(portfolio: PortfolioState): PortfolioState {
         { quantity: position.quantity, costBasisCents: position.costBasisCents }
       ])
     ),
-    ...(portfolio.research ? { research: { ...portfolio.research } } : {})
+    ...(portfolio.research ? { research: { ...portfolio.research } } : {}),
+    ...(portfolio.progression ? { progression: { ...portfolio.progression } } : {})
   };
 }
 
