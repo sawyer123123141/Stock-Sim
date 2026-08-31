@@ -1,6 +1,6 @@
 # Early Player Progression V1 Design
 
-**Status:** Design for independent review. Production implementation is deliberately deferred.  
+**Status:** Approved design, amended before implementation.  
 **Scope:** the first durable player-progression loop after Research Progression V1.  
 **Prerequisite:** merged `main` at `056619d15002d7ad32e82bc71f2c6eac4ec07649` (PR #29).
 
@@ -156,7 +156,7 @@ The stage itself matters because it is a durable, server-owned declaration that 
 
 ## 6. Minimal persistence and authority design
 
-### 6.1 Canonical state
+### 6.1 Canonical state and legacy reconciliation
 
 The existing private persisted portfolio record remains the player-owned home for early progression. No state belongs in the shared market runtime, `MarketSnapshot`, polling/WebSocket traffic, or browser-only memory.
 
@@ -177,23 +177,30 @@ interface PlayerEarlyProgressionState {
 }
 ```
 
-Missing legacy state hydrates as `{ independentInvestorComplete: false }`. It never invents a prior stock purchase, research focus, or portfolio milestone. A legacy player therefore sees the safe New Investor sequence.
+Missing legacy state hydrates as `{ independentInvestorComplete: false }`. The server may then reconcile that false/missing value **only** when the current authoritative player state already proves every final condition:
+
+1. `firstStockPurchaseComplete` is true;
+2. the persisted focus resolves to a currently valid stock Research Focus; and
+3. the current portfolio has positive positions in at least two distinct stocks.
+
+When all three are true, the existing player-state transaction atomically writes `independentInvestorComplete: true`. This is not inferred historical progress: the present state proves the player is already at the final guided condition. The reconciliation changes only the player-owned milestone; it must not advance canonical time, call simulation code, change the runtime recovery state, prices, stories, pressure, portfolio balances/positions, or public market projection.
+
+If the player currently holds fewer than two stocks, holds one stock plus crypto, has a malformed/stale/crypto focus, or lacks the first-stock milestone, the server must leave the completion record false. It must never infer completion from trade history, profit, account age, crypto holdings, browser state, or an earlier unrecorded portfolio.
 
 `independentInvestorComplete` is not a duplicate Research-unlock flag and is not a collection of transient UI booleans. It is the one historical fact that cannot be derived after the player later sells positions: they successfully completed the early two-stock portfolio foundation while Research was available.
 
 ### 6.2 Derived projection
 
-Stage, current guided objective, onboarding completion, and capability list are server-derived from:
+Stage, current guided objective, and onboarding completion are server-derived from:
 
 * `firstStockPurchaseComplete` from player Research state;
 * whether the active focus is valid against the current runtime;
 * `independentInvestorComplete`; and
 * the current portfolio only while deciding whether a successful mutation completes the milestone.
 
-No `unlocked`, `stage`, `objective`, or capability booleans are separately persisted. A later implementation may nest this in the existing player-owned research response so the header retains one request path, conceptually:
+No `unlocked`, `stage`, or objective booleans are separately persisted. A later implementation may nest this in the existing player-owned research response so the header retains one request path, conceptually:
 
 ```ts
-type PlayerCapability = "research-focus";
 type GuidedObjective =
   | "make-first-stock-investment"
   | "choose-research-focus"
@@ -203,11 +210,10 @@ interface PlayerProgressionSnapshot {
   stage: "new-investor" | "independent-investor";
   onboardingComplete: boolean;
   guidedObjective?: GuidedObjective;
-  unlockedCapabilities: PlayerCapability[];
 }
 ```
 
-`research-focus` is derived from the same first-stock flag used by existing Research. It is never independently written. The currently focused brief remains in the player-specific Research projection, not in the shared market snapshot.
+Research Focus remains derived from the same first-stock flag used by existing Research. It is never independently written, duplicated in a progression record, or represented in a generalized capability array. The currently focused brief remains in the player-specific Research projection, not in the shared market snapshot.
 
 ### 6.3 Atomic completion
 
@@ -215,6 +221,7 @@ The existing Postgres row-lock transaction remains the only authority boundary.
 
 * After a successful Buy mutates the working portfolio, the server determines whether there are two distinct positive stock positions and an already-valid focus. If so, it writes `independentInvestorComplete` in that same portfolio transaction.
 * After a successful focus mutation, the server evaluates the existing portfolio. If it already contains two distinct positive stock positions, it writes the completion record in that same transaction.
+* While resolving a legacy/current player projection, the server may make the stricter present-state reconciliation described above in that same player transaction. It does not inspect historical trades or change market/runtime state.
 * Rejected trades/focus changes cannot mutate progression. Sells, losses, withdrawal to cash, and later invalid/stale focus sanitation cannot remove the completion record.
 
 This permits either valid play order without a second loose write. It preserves restart recovery, concurrent-trade serialization, and future per-account ownership because the state is stored beside the same player portfolio record.
@@ -287,11 +294,11 @@ On desktop, the header preserves the current Portfolio / center chip / Cash rhyt
 
 The visual principle remains: **the market looks real; the surrounding experience feels like a calm game.** The stage offers game identity through context and language, not through mobile-game spectacle.
 
-## 10. Capability-unlock architecture and future specialist bridge
+## 10. Future capability bridge and specialist compatibility
 
-V1 establishes a capability registry concept, but serializes only capabilities that exist. `research-focus` is the only current capability. A capability is a server-owned permission to expose or operate a real, bounded product behavior; it is not an invisible modifier, score, or promise of future access.
+Research Focus is the only current capability and already derives from the canonical first-stock Research milestone. V1 therefore introduces **no** capability registry, persisted capability array, generic capability database, or abstraction whose only member would be Research Focus. The player projection exposes only the minimal derived research/progression fields that the header and Research tab need.
 
-Later slices may add capabilities such as maintained research coverage, Market Intelligence filtering, risk monitoring, or player-authored execution rules only when their underlying work has become repetitive and their input data is legitimate public information. Those capabilities must be added by their own reviewed designs.
+Later slices may introduce a generalized capability model only when a second real capability exists and its design proves that shared abstraction useful. Examples might eventually include maintained research coverage, Market Intelligence filtering, risk monitoring, or player-authored execution rules. Each must be a server-owned permission to expose or operate a real, bounded product behavior, not an invisible modifier, score, or promise of future access.
 
 The first specialist/dept bridge is deliberately **not** “reach a level, receive an analyst.” A later Market Operations slice should require both:
 
@@ -336,8 +343,8 @@ A later implementation plan must prove at minimum that:
 4. holding two distinct stocks once, together with a valid focus, completes Independent Investor atomically in either natural action order;
 5. same-stock buys, crypto, loss, return, story clicks, time, and trade volume cannot complete it;
 6. later sales, cash drawdown, poor performance, and restart recovery never regress Research or Independent Investor;
-7. objective/stage/capabilities derive from one canonical player state without duplicate persisted unlock flags;
-8. malformed legacy progression/research state sanitizes safely without auto-completing a milestone;
+7. objective/stage derive from one canonical player state without duplicate persisted unlock flags or a generic capability registry;
+8. malformed legacy progression/research state sanitizes safely without auto-completing a milestone, while a legacy player whose current valid focus and two current stocks prove completion reconciles atomically;
 9. concurrent trades/focus changes cannot fork or double-advance the milestone under the existing row lock;
 10. changing progression cannot affect shared prices, canonical time, RNG, stories, relationships, pressure, portfolio accounting, or public `MarketSnapshot` content;
 11. the compact header moves from guided objective to stage status without desktop or 390px overflow; and
@@ -349,7 +356,7 @@ A later implementation plan must prove at minimum that:
 
 **Luck dependence:** no result, price, or profit/loss condition exists. A losing player keeps Research and stage progress.
 
-**Duplicate-state risk:** the existing first-stock research milestone remains its only source of truth. V1 persists one semantic final-completion fact, deriving objective, stage, onboarding completion, and capability projection from it and existing validated state.
+**Duplicate-state risk:** the existing first-stock research milestone remains its only source of truth. V1 persists one semantic final-completion fact, deriving objective, stage, and onboarding completion from it and existing validated state. It deliberately does not create a one-member capability registry or a second Research unlock flag.
 
 **Over-tutorialization risk:** guidance disappears after the small portfolio foundation. The completed header is status, not an endless assignment engine.
 
@@ -359,7 +366,7 @@ A later implementation plan must prove at minimum that:
 
 **Too-shallow risk:** the system turns an otherwise terminal objective into a durable player history and a clear boundary between learning one company and building a multi-company portfolio. It also gives future operations a truthful eligibility anchor without manufacturing friction in the small current market.
 
-**Market-odds risk:** progression is not an input to prices, events, trade fills, player pressure, simulation timing, or hidden data access. It adds understanding/capability organization only.
+**Market-odds risk:** progression is not an input to prices, events, trade fills, player pressure, simulation timing, or hidden data access. Reconciliation only writes player state when present conditions prove it and cannot alter the runtime. V1 adds understanding/progression organization only.
 
 **Specialist compatibility:** later specialists must solve demonstrated attention scale beyond this one personal focus slot, not replace player judgment or unlock from an arbitrary level.
 
