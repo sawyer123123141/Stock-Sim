@@ -166,7 +166,7 @@ export function useMarketSession(): MarketSession {
       const result = await submitTrade({ assetId: selectedAssetId, side, quantity });
       setPortfolio(result.portfolio);
       setLastTrade(result.fill);
-      await refreshResearch();
+      void refreshResearch();
       return result;
     } catch (tradeFailure) {
       setTradeError(errorMessage(tradeFailure));

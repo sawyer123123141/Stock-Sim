@@ -20,17 +20,31 @@ export interface ResearchService {
   setFocus(playerId: string, intent: ResearchFocusIntent): Promise<ResearchProgressionSnapshot>;
 }
 
+interface ResolvedResearchState {
+  state: ReturnType<typeof normalizePlayerResearchState>;
+  brief?: NonNullable<ReturnType<MarketRuntime["researchBriefForAsset"]>>;
+}
+
+function resolveResearchState(value: unknown, runtime: MarketRuntime): ResolvedResearchState {
+  const state = normalizePlayerResearchState(value);
+  if (!state.activeStockAssetId) return { state };
+  const brief = runtime.researchBriefForAsset(state.activeStockAssetId);
+  if (brief) return { state, brief };
+  return {
+    state: { firstStockPurchaseComplete: true }
+  };
+}
+
 export function createResearchService(options: {
   runtime: MarketRuntime;
   store: PortfolioStore;
 }): ResearchService {
   async function getResearch(playerId: string): Promise<ResearchProgressionSnapshot> {
-    const portfolio = await options.store.read(playerId);
-    const research = normalizePlayerResearchState(portfolio.research);
-    const brief = research.activeStockAssetId
-      ? options.runtime.researchBriefForAsset(research.activeStockAssetId)
-      : undefined;
-    return toResearchProgressionSnapshot(research, brief);
+    return options.store.transact(playerId, (portfolio) => {
+      const resolved = resolveResearchState(portfolio.research, options.runtime);
+      portfolio.research = resolved.state;
+      return toResearchProgressionSnapshot(resolved.state, resolved.brief);
+    });
   }
 
   async function setFocus(
@@ -41,7 +55,7 @@ export function createResearchService(options: {
       throw new ResearchError("INVALID_RESEARCH_FOCUS", "A stock asset ID is required.");
     }
     return options.store.transact(playerId, (portfolio) => {
-      const research = normalizePlayerResearchState(portfolio.research);
+      const research = resolveResearchState(portfolio.research, options.runtime).state;
       if (!research.firstStockPurchaseComplete) {
         throw new ResearchError("RESEARCH_LOCKED", "Research is not unlocked yet.");
       }

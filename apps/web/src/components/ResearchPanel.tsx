@@ -18,7 +18,7 @@ const companyCopy: Record<keyof FocusedStockResearchBrief["company"], Record<Com
 const expectationCopy: Record<keyof FocusedStockResearchBrief["expectations"], Record<ExpectationResearchLevel, string>> = {
   growth: { cautious: "Investors remain cautious on growth", balanced: "Growth expectations are balanced", constructive: "Investors expect constructive growth", high: "Growth expectations are high" },
   profitability: { cautious: "Investors remain cautious on profitability", balanced: "Profitability expectations are balanced", constructive: "Investors expect constructive profitability", high: "Profitability expectations are high" },
-  demand: { cautious: "Investors remain cautious on demand", balanced: "Demand expectations are balanced", constructive: "Investors expect strong demand", high: "Investors expect strong demand" },
+  demand: { cautious: "Investors remain cautious on demand", balanced: "Demand expectations are balanced", constructive: "Investors expect healthy demand", high: "Investors expect strong demand" },
   execution: { cautious: "Investors remain cautious on execution", balanced: "Execution expectations are balanced", constructive: "Investors expect constructive execution", high: "Execution expectations are high" }
 };
 

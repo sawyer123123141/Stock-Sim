@@ -25,10 +25,19 @@ test("Research UI renders locked, unfocused, and focused states from player rese
   assert.match(panel, /Research this company/);
   assert.match(panel, /Move research focus/);
   assert.match(panel, /Good results can still feel ordinary when expectations are high/);
+  assert.match(panel, /constructive: "Investors expect healthy demand"/);
+  assert.match(panel, /high: "Investors expect strong demand"/);
   assert.doesNotMatch(panel, /asset\.research/);
   assert.match(header, /make-first-stock-investment/);
   assert.match(app, /focusResearch/);
   assert.match(tabs, /asset\.kind === "stock"/);
   assert.match(styles, /@media \(max-width: 560px\)/);
   assert.match(styles, /\.research-row/);
+});
+
+test("successful trade completion does not await the secondary Research refresh", async () => {
+  const session = await text("apps/web/src/useMarketSession.ts");
+
+  assert.doesNotMatch(session, /await refreshResearch\(\)/);
+  assert.match(session, /void refreshResearch\(\)/);
 });

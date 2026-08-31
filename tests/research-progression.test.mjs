@@ -113,3 +113,47 @@ test("Research Focus has no shared market, runtime, RNG, canonical-time, or port
   assert.deepEqual(await authority.getPortfolio(), portfolioBefore);
   assert.equal(session.store.state.nextTradeId, nextTradeIdBefore);
 });
+
+test("locked malformed Research state has no focus or brief and does not auto-focus after the first stock purchase", async () => {
+  const session = createClockedAuthority();
+  session.store.state.portfolio.research = {
+    firstStockPurchaseComplete: false,
+    activeStockAssetId: "nova"
+  };
+  const authority = session.authority();
+
+  const locked = await authority.getResearch();
+  assert.deepEqual(locked, {
+    unlocked: false,
+    coverageCapacity: 1,
+    objective: "make-first-stock-investment"
+  });
+  assert.doesNotMatch(JSON.stringify(locked), /activeStockAssetId|brief|company|expectations/i);
+
+  await authority.executeTrade({ assetId: "nova", side: "buy", quantity: 1 });
+  assert.deepEqual(await authority.getResearch(), {
+    unlocked: true,
+    coverageCapacity: 1,
+    objective: "choose-research-focus"
+  });
+});
+
+test("unlocked stale crypto or missing Research Focus resolves to no focus and no brief", async () => {
+  const session = createClockedAuthority();
+  const authority = session.authority();
+  await authority.executeTrade({ assetId: "nova", side: "buy", quantity: 1 });
+
+  for (const activeStockAssetId of ["pulse", "missing"]) {
+    session.store.state.portfolio.research = {
+      firstStockPurchaseComplete: true,
+      activeStockAssetId
+    };
+    const research = await authority.getResearch();
+    assert.deepEqual(research, {
+      unlocked: true,
+      coverageCapacity: 1,
+      objective: "choose-research-focus"
+    });
+    assert.doesNotMatch(JSON.stringify(research), /activeStockAssetId|brief|company|expectations/i);
+  }
+});
